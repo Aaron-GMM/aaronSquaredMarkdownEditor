@@ -1,0 +1,90 @@
+/* Sistema de Cores e Variáveis (Dark Mode Default) */
+:root {
+    --bg-base: #1b2636;        /* Fundo da Sidebar e UI externa */
+    --bg-workspace: #0f172a;   /* Fundo do Editor (mais escuro) */
+    --text-primary: #e2e8f0;   /* Texto principal */
+    --text-muted: #94a3b8;     /* Texto secundário/pastas */
+    --accent: #3b82f6;         /* Cor de destaque (Azul) */
+    --border-color: #334155;   /* Bordas divisórias */
+    --font-mono: 'Consolas', 'Courier New', monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Reset Básico */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--bg-workspace);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Layout Principal */
+#app-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* Sidebar */
+#sidebar {
+    width: 250px;
+    background-color: var(--bg-base);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-header h2 {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+}
+
+#file-tree {
+    list-style: none;
+    padding: 10px;
+    overflow-y: auto;
+    font-size: 14px;
+}
+
+/* Workspace (Split Editor/Preview) */
+#workspace {
+    flex: 1;
+    display: flex;
+}
+
+#editor-container, #preview-container {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+#editor-container {
+    border-right: 1px solid var(--border-color);
+}
+
+#markdown-editor {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    resize: none;
+    outline: none;
+}

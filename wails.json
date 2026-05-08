@@ -1,0 +1,13 @@
+{
+  "$schema": "https://wails.io/schemas/wails.json",
+  "name": "A2-Editor",
+  "outputfilename": "aaron2",
+  "frontend:install": "",
+  "frontend:build": "",
+  "frontend:dev:watcher": "",
+  "frontend:dev:serverUrl": "",
+  "wailsjsdir": "./frontend/src/services",
+  "author": {
+    "name": "Aaron (Dev)"
+  }
+}
