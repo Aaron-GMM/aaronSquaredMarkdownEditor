@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aaron² Editor</title>
+    <link rel="stylesheet" href="./src/styles/main.css">
+</head>
+<body>
+<div id="app-container">
+    <aside id="sidebar">
+        <div class="sidebar-header">
+            <h2>A² Explorer</h2>
+        </div>
+        <ul id="file-tree">
+        </ul>
+    </aside>
+
+    <main id="workspace">
+        <div id="editor-container">
+            <textarea id="markdown-editor" placeholder="Comece a escrever seu Markdown aqui..."></textarea>
+        </div>
+        <div id="preview-container">
+            <div id="markdown-preview">O preview aparecerá aqui.</div>
+        </div>
+    </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
+
+<script src="./src/main.js" type="module"></script>
+</body>
+</html>
