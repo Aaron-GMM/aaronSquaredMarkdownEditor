@@ -144,28 +144,62 @@ async function openFile(path) {
 // LÓGICA DO EDITOR E MARKDOWN
 // ==========================================
 
-// Inicializa o conversor Markdown
+// Inicializa o Mermaid com o tema dark para combinar com o Aaron²
+mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+
+// Inicializa o conversor Markdown com regras customizadas
 const md = window.markdownit({
-    html: true,       // Permite HTML dentro do Markdown
-    breaks: true,     // Quebra de linhas automáticas
-    linkify: true     // Transforma URLs em links automaticamente
+    html: true,
+    breaks: true,
+    linkify: true,
+
+    // Sobrescreve o renderizador padrão de blocos de código
+    highlight: function (str, lang) {
+        // 1. Regra para o Mermaid: Se a linguagem for 'mermaid', apenas cria a div para ele ler
+        if (lang && lang.toLowerCase() === 'mermaid') {
+            return `<div class="mermaid">${str}</div>`;
+        }
+
+        // 2. Regra para o Prism: Tenta colorir o código nativamente
+        if (lang && Prism.languages[lang]) {
+            try {
+                return '<pre class="language-' + lang + '"><code class="language-' + lang + '">' +
+                    Prism.highlight(str, Prism.languages[lang], lang) +
+                    '</code></pre>';
+            } catch (__) {}
+        }
+
+        // 3. Fallback: Se não tiver linguagem, escapa o HTML normal
+        return '<pre class="language-none"><code class="language-none">' + md.utils.escapeHtml(str) + '</code></pre>';
+    }
 });
 
 let debounceTimer;
 
-// Função para atualizar o preview com Debounce (Critério de Performance: < 50ms)
+// Função para atualizar o preview com Debounce
 function updatePreview() {
     const editor = document.getElementById('markdown-editor');
     const preview = document.getElementById('markdown-preview');
 
-    // Limpa o timer anterior se o usuário continuou digitando
     clearTimeout(debounceTimer);
 
-    // Configura o novo timer de 50ms
-    debounceTimer = setTimeout(() => {
+    // O debounce foi convertido para async para suportar a renderização do Mermaid
+    debounceTimer = setTimeout(async () => {
         const rawText = editor.value;
+
+        // Renderiza o HTML (neste momento, o Prism já colore o código)
         const htmlContent = md.render(rawText);
         preview.innerHTML = htmlContent;
+
+        // Após injetar o HTML, manda o Mermaid procurar as divs e desenhar os diagramas
+        try {
+            await mermaid.run({
+                querySelector: '.mermaid',
+                suppressErrors: true // Impede que o app trave se o usuário estiver na metade da digitação do diagrama
+            });
+        } catch (err) {
+            // Ignora silenciosamente erros de sintaxe incompletos durante a digitação
+        }
     }, 50);
 }
 
