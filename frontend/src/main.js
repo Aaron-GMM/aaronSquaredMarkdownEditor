@@ -4,9 +4,9 @@ import {
     SaveNote,
     CreateFile,
     DeleteNode,
-    ExecuteTerminalCommand
+    StartTerminal, // NOVO
+    WriteTerminal  // NOVO
 } from './services/wailsjs/go/app/App.js';
-
 document.addEventListener('DOMContentLoaded', async () => {
     const fileTree = document.getElementById('file-tree');
 
@@ -216,56 +216,62 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-document.addEventListener('DOMContentLoaded', () => {
-    // Instancia o Xterm.js
-    const term = new Terminal({
-        theme: {
-            background: '#000000',
-            foreground: '#e2e8f0',
-            cursor: '#3b82f6'
-        },
-        fontFamily: 'var(--font-mono)',
-        fontSize: 14,
-        cursorBlink: true
-    });
-
-    // Anexa o terminal à div no HTML
-    term.open(document.getElementById('terminal-container'));
-    term.writeln('\x1b[1;34m⚡ Aaron² Terminal Iniciado\x1b[0m');
-    prompt(term);
-
-    let currentInput = '';
-
-    // Escuta a digitação do usuário
-    term.onKey(async ({ key, domEvent }) => {
-        const printable = !domEvent.altKey && !domEvent.altGraphKey && !domEvent.ctrlKey && !domEvent.metaKey;
-
-        if (domEvent.keyCode === 13) { // Tecla ENTER
-            term.write('\r\n');
-            if (currentInput.trim() !== '') {
-                // Chama o Go para executar o comando nativo!
-                try {
-                    const output = await ExecuteTerminalCommand(currentInput);
-                    // O output vem do Go com quebras de linha normais (\n),
-                    // o Xterm precisa de carriage return + newline (\r\n)
-                    term.write(output.replace(/\n/g, '\r\n'));
-                } catch (err) {
-                    term.writeln(`\x1b[1;31mErro:\x1b[0m ${err}`);
-                }
-            }
-            currentInput = '';
-            prompt(term);
-        } else if (domEvent.keyCode === 8) { // Tecla BACKSPACE
-            if (currentInput.length > 0) {
-                currentInput = currentInput.slice(0, -1);
-                term.write('\b \b');
-            }
-        } else if (printable) {
-            currentInput += key;
-            term.write(key);
-        }
-    });
+// Instancia o Xterm.js
+const term = new Terminal({
+    theme: {
+        background: '#000000',
+        foreground: '#e2e8f0',
+        cursor: '#3b82f6'
+    },
+    fontFamily: 'var(--font-mono)',
+    fontSize: 14,
+    cursorBlink: true
 });
+
+// Anexa o terminal à div no HTML
+term.open(document.getElementById('terminal-container'));
+term.writeln('\x1b[1;34m⚡ Aaron² Terminal Iniciado (Sessão Persistente)\x1b[0m');
+
+// Inicia o processo nativo no Go
+try {
+    await StartTerminal();
+} catch (e) {
+    term.writeln(`\r\n\x1b[1;31mErro ao iniciar bash/powershell:\x1b[0m ${e}`);
+}
+
+// Escuta tudo o que o terminal do Go "cospe" e joga na tela
+window.runtime.EventsOn("terminal:output", (data) => {
+    // Formata as quebras de linha para o Xterm entender
+    term.write(data.replace(/\n/g, '\r\n'));
+});
+
+let currentInput = '';
+
+// Escuta a digitação do usuário
+term.onKey(async ({ key, domEvent }) => {
+    const printable = !domEvent.altKey && !domEvent.altGraphKey && !domEvent.ctrlKey && !domEvent.metaKey;
+
+    if (domEvent.keyCode === 13) { // Tecla ENTER
+        term.write('\r\n');
+        if (currentInput.trim() !== '') {
+            // Envia o comando + a quebra de linha (\n) pro Go processar
+            try {
+                await WriteTerminal(currentInput + "\n");
+            } catch (err) {
+                term.writeln(`\r\n\x1b[1;31mErro:\x1b[0m ${err}`);
+            }
+        }
+        currentInput = '';
+    } else if (domEvent.keyCode === 8) { // Tecla BACKSPACE
+        if (currentInput.length > 0) {
+            currentInput = currentInput.slice(0, -1);
+            term.write('\b \b');
+        }
+    } else if (printable) {
+        currentInput += key;
+        term.write(key);
+    }
+    });
 
 function prompt(term) {
     term.write('\r\n\x1b[1;32m$\x1b[0m ');
