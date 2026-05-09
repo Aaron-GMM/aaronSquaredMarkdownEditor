@@ -17,13 +17,16 @@ type ShellSession struct {
 }
 
 // NewShellSession inicia o terminal (Bash ou PS) e mantém o processo aberto
+// NewShellSession inicia o terminal e mantém o processo aberto
 func NewShellSession(ctx context.Context) (*ShellSession, error) {
 	var cmd *exec.Cmd
 
 	if runtime.GOOS == "windows" {
-		cmd = exec.Command("powershell.exe", "-NoProfile")
+		// -NoExit impede que o PowerShell morra imediatamente
+		cmd = exec.Command("powershell.exe", "-NoProfile", "-NoExit")
 	} else {
-		cmd = exec.Command("bash")
+		// -i força o bash a entrar no modo Interativo, evitando que feche sozinho
+		cmd = exec.Command("bash", "-i")
 	}
 
 	stdin, err := cmd.StdinPipe()
@@ -36,10 +39,8 @@ func NewShellSession(ctx context.Context) (*ShellSession, error) {
 		return nil, err
 	}
 
-	// Mescla os erros (stderr) na mesma saída padrão (stdout)
 	cmd.Stderr = cmd.Stdout
 
-	// Inicia o processo em background
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
@@ -56,7 +57,6 @@ func NewShellSession(ctx context.Context) (*ShellSession, error) {
 		for {
 			n, err := stdout.Read(buf)
 			if n > 0 {
-				// Emite um evento global do Wails que o JS vai escutar depois
 				wailsRuntime.EventsEmit(ctx, "terminal:output", string(buf[:n]))
 			}
 			if err != nil {
