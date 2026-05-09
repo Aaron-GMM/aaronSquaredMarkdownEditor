@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context" // Adicionado para o hook de shutdown
 	"embed"
 	"log"
 
@@ -25,6 +26,13 @@ func main() {
 		},
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1}, // Dark theme
 		OnStartup:        myApp.Startup,
+
+		// NOVO: Hook que roda quando a janela está sendo fechada
+		OnShutdown: func(ctx context.Context) {
+			log.Println("Encerrando Aaron²... Limpando processos zumbis.")
+			myApp.StopTerminal()
+		},
+
 		Bind: []interface{}{
 			myApp,
 		},
