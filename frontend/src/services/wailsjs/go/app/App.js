@@ -14,10 +14,6 @@ export function DeleteNode(arg1) {
   return window['go']['app']['App']['DeleteNode'](arg1);
 }
 
-export function ExecuteTerminalCommand(arg1) {
-  return window['go']['app']['App']['ExecuteTerminalCommand'](arg1);
-}
-
 export function GetDirectory(arg1) {
   return window['go']['app']['App']['GetDirectory'](arg1);
 }
@@ -32,4 +28,16 @@ export function RenameNode(arg1, arg2) {
 
 export function SaveNote(arg1, arg2) {
   return window['go']['app']['App']['SaveNote'](arg1, arg2);
+}
+
+export function StartTerminal() {
+  return window['go']['app']['App']['StartTerminal']();
+}
+
+export function StopTerminal() {
+  return window['go']['app']['App']['StopTerminal']();
+}
+
+export function WriteTerminal(arg1) {
+  return window['go']['app']['App']['WriteTerminal'](arg1);
 }
