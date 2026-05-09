@@ -67,3 +67,30 @@ func SaveFile(path string, content string) error {
 	// Permissão 0644: Leitura/Escrita pro dono, apenas leitura pros outros
 	return os.WriteFile(path, []byte(content), 0644)
 }
+
+// CreateFile cria um novo arquivo em branco.
+func CreateFile(path string) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	return nil
+}
+
+// CreateDirectory cria uma nova pasta.
+func CreateDirectory(path string) error {
+	// Permissão 0755: Leitura e execução para todos, escrita apenas para o dono
+	return os.MkdirAll(path, 0755)
+}
+
+// DeleteNode apaga recursivamente um arquivo ou diretório.
+func DeleteNode(path string) error {
+	return os.RemoveAll(path)
+}
+
+// RenameNode renomeia ou move um arquivo/diretório de lugar.
+func RenameNode(oldPath, newPath string) error {
+	// O os.Rename usa chamadas de sistema nativas de altíssima performance para mover ponteiros de disco
+	return os.Rename(oldPath, newPath)
+}
