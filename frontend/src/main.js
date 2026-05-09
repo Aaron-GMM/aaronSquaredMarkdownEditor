@@ -1,5 +1,5 @@
 import {
-    GetDirectory, OpenNote, SaveNote, CreateFile, DeleteNode, RenameNode, StartTerminal, WriteTerminal
+    GetDirectory, OpenNote, SaveNote, CreateFile, DeleteNode, RenameNode, StartTerminal, WriteTerminal, SaveImage, ReadImageBase64
 } from './services/wailsjs/go/app/App.js';
 
 let currentFilePath = "";
@@ -72,7 +72,120 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
+    const btnInsertImage = document.getElementById('btn-insert-image');
+    const imageUpload = document.getElementById('image-upload');
+
+    // Quando clica no botão com o ícone, dispara o input de ficheiro escondido
+    btnInsertImage.onclick = () => imageUpload.click();
+
+    // Quando o utilizador escolhe uma imagem do computador
+    imageUpload.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+
+        reader.onload = async (event) => {
+            const base64Str = event.target.result.split(',')[1];
+            // Extrai a extensão original do ficheiro ou usa png por defeito
+            const ext = file.name.split('.').pop() || 'png';
+            const fileName = `img_${Date.now()}.${ext}`;
+            const filePath = `./${fileName}`;
+
+            try {
+                // Envia para o Go guardar no disco
+                await SaveImage(filePath, base64Str);
+
+                // Insere a tag Markdown onde o cursor estiver
+                const cursorPos = editor.selectionStart;
+                const textBefore = editor.value.substring(0, cursorPos);
+                const textAfter = editor.value.substring(editor.selectionEnd);
+
+                const markdownTag = `\n![${file.name}](${filePath})\n`;
+                editor.value = textBefore + markdownTag + textAfter;
+
+                // Atualiza o ecrã
+                updatePreview();
+                await loadDirectory("./", document.getElementById('file-tree'));
+
+            } catch (err) {
+                alert("Erro ao guardar a imagem: " + err);
+            }
+
+            // Limpa o input para permitir escolher a mesma imagem novamente se necessário
+            imageUpload.value = '';
+        };
+
+        // Lê o ficheiro escolhido
+        reader.readAsDataURL(file);
+    };
+
     editor.addEventListener('input', updatePreview);
+
+// --- LÓGICA DE COLAR IMAGENS (RF06) - COM DEBUG ---
+    editor.addEventListener('paste', async (e) => {
+        // 1. Tenta capturar a área de transferência
+        const clipboardData = e.clipboardData || window.clipboardData;
+
+        if (!clipboardData) {
+            console.error("Área de transferência não encontrada pelo navegador.");
+            return;
+        }
+
+        const items = clipboardData.items;
+        let imageFound = false;
+
+        // 2. Procura por qualquer item que seja uma imagem
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                imageFound = true;
+                e.preventDefault(); // Impede de colar texto por acidente
+
+                const file = items[i].getAsFile();
+                if (!file) {
+                    alert("A imagem foi detetada, mas o sistema não conseguiu lê-la.");
+                    continue;
+                }
+
+                alert(`Imagem capturada com sucesso! Tipo: ${file.type}`);
+
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    const base64Str = event.target.result.split(',')[1];
+                    const ext = file.type.split('/')[1] || 'png';
+                    const fileName = `img_${Date.now()}.${ext}`;
+                    const filePath = `./${fileName}`;
+
+                    try {
+                        alert("A enviar para o Go guardar...");
+                        await SaveImage(filePath, base64Str);
+                        alert("Go guardou a imagem!");
+
+                        // Insere a tag no editor
+                        const cursorPos = editor.selectionStart;
+                        const textBefore = editor.value.substring(0, cursorPos);
+                        const textAfter = editor.value.substring(editor.selectionEnd);
+
+                        const markdownTag = `\n![Imagem](${filePath})\n`;
+                        editor.value = textBefore + markdownTag + textAfter;
+
+                        updatePreview();
+                        await loadDirectory("./", document.getElementById('file-tree'));
+
+                    } catch (err) {
+                        alert("Erro no Go ao guardar: " + err);
+                    }
+                };
+
+                reader.readAsDataURL(file);
+                break; // Para o loop depois de achar a imagem
+            }
+        }
+
+        if (!imageFound) {
+            console.log("Nenhuma imagem detetada no Ctrl+V. Apenas texto.");
+        }
+    });
 
     window.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -170,9 +283,37 @@ function updatePreview() {
         const editor = document.getElementById('markdown-editor');
         const preview = document.getElementById('markdown-preview');
 
+        // 1. Renderiza o HTML puro do Markdown
         preview.innerHTML = md.render(editor.value);
+
+        // 2. Processa os diagramas Mermaid
         try {
             await mermaid.run({ querySelector: '.mermaid', suppressErrors: true });
         } catch (err) {}
+
+        // 3. MÁGICA DAS IMAGENS: Carrega imagens locais dinamicamente via Go
+        const images = preview.querySelectorAll('img');
+        images.forEach(async (img) => {
+            const originalSrc = img.getAttribute('src');
+
+            // Se for um caminho local (não começar com http ou data:)
+            if (originalSrc && !originalSrc.startsWith('http') && !originalSrc.startsWith('data:')) {
+                try {
+                    // Pede ao Go para ler o ficheiro no disco
+                    const base64Data = await ReadImageBase64(originalSrc);
+
+                    // Descobre a extensão para o formato correto
+                    const ext = originalSrc.split('.').pop().toLowerCase();
+                    const mimeType = (ext === 'jpg' || ext === 'jpeg') ? 'image/jpeg' :
+                        (ext === 'svg') ? 'image/svg+xml' :
+                            (ext === 'gif') ? 'image/gif' : 'image/png';
+
+                    // Substitui a src temporariamente no preview pela imagem real carregada!
+                    img.src = `data:${mimeType};base64,${base64Data}`;
+                } catch (err) {
+                    console.warn(`Aviso: Imagem local não encontrada: ${originalSrc}`);
+                }
+            }
+        });
     }, 50);
 }

@@ -1,6 +1,7 @@
 package filesystem
 
 import (
+	"encoding/base64" // Adicione isto aos seus imports no topo do ficheiro, junto com "os", etc.
 	"errors"
 	"os"
 	"path/filepath"
@@ -8,6 +9,25 @@ import (
 
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/domain"
 )
+
+func SaveImage(path string, base64Data string) error {
+	// Decodifica a string base64 para um array de bytes
+	data, err := base64.StdEncoding.DecodeString(base64Data)
+	if err != nil {
+		return err
+	}
+
+	// Salva o arquivo com permissões padrão
+	return os.WriteFile(path, data, 0644)
+}
+func ReadImageBase64(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	// Codifica os bytes puros para uma string base64
+	return base64.StdEncoding.EncodeToString(data), nil
+}
 
 // ListDirectory lê um diretório de forma rasa (não recursiva imediatamente para poupar memória)
 // A recursividade total pode ser implementada sob demanda via frontend ou aprofundada aqui.
