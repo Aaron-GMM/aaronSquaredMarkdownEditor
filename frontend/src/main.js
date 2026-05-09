@@ -1,312 +1,178 @@
 import {
-    GetDirectory,
-    OpenNote,
-    SaveNote,
-    CreateFile,
-    DeleteNode,
-    StartTerminal, // NOVO
-    WriteTerminal  // NOVO
+    GetDirectory, OpenNote, SaveNote, CreateFile, DeleteNode, RenameNode, StartTerminal, WriteTerminal
 } from './services/wailsjs/go/app/App.js';
+
+let currentFilePath = "";
+let debounceTimer;
+
+// Configuração do Markdown-it e Prism
+const md = window.markdownit({
+    html: true, breaks: true, linkify: true,
+    highlight: function (str, lang) {
+        if (lang && lang.toLowerCase() === 'mermaid') { return `<div class="mermaid">${str}</div>`; }
+        if (lang && Prism.languages[lang]) {
+            try { return '<pre class="language-' + lang + '"><code class="language-' + lang + '">' + Prism.highlight(str, Prism.languages[lang], lang) + '</code></pre>'; } catch (__) {}
+        }
+        return '<pre class="language-none"><code class="language-none">' + md.utils.escapeHtml(str) + '</code></pre>';
+    }
+});
+mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+
 document.addEventListener('DOMContentLoaded', async () => {
     const fileTree = document.getElementById('file-tree');
+    const editor = document.getElementById('markdown-editor');
 
-    // Inicia carregando o diretório atual do projeto
-    // No futuro, isso pode ser escolhido via um botão "Abrir Pasta"
+    // 1. Inicia o Terminal
+    const term = new Terminal({
+        theme: { background: '#000000', foreground: '#e2e8f0', cursor: '#3b82f6' },
+        fontFamily: 'monospace', fontSize: 14, cursorBlink: true
+    });
+    term.open(document.getElementById('terminal-container'));
+
+    try {
+        await StartTerminal();
+        window.runtime.EventsOn("terminal:output", (data) => {
+            term.write(data.replace(/\n/g, '\r\n'));
+        });
+    } catch (e) {
+        term.writeln(`\r\n\x1b[1;31mErro:\x1b[0m ${e}`);
+    }
+
+    let currentInput = '';
+    term.onKey(async ({ key, domEvent }) => {
+        if (domEvent.keyCode === 13) {
+            term.write('\r\n');
+            await WriteTerminal(currentInput + "\n");
+            currentInput = '';
+        } else if (domEvent.keyCode === 8) {
+            if (currentInput.length > 0) {
+                currentInput = currentInput.slice(0, -1);
+                term.write('\b \b');
+            }
+        } else {
+            currentInput += key;
+            term.write(key);
+        }
+    });
+
+    // 2. Eventos da UI e Arquivos
     await loadDirectory("./", fileTree);
+
+    document.getElementById('btn-refresh').onclick = () => loadDirectory("./", fileTree);
+
+    document.getElementById('btn-new-file').onclick = async () => {
+        const fileName = prompt("Nome do arquivo (ex: nota.md):");
+        if (fileName) {
+            const safeName = fileName.endsWith('.md') ? fileName : `${fileName}.md`;
+            try {
+                await CreateFile(`./${safeName}`);
+                await loadDirectory("./", fileTree);
+                await window.openFile(`./${safeName}`);
+            } catch (err) { alert("Erro ao criar: " + err); }
+        }
+    };
+
+    editor.addEventListener('input', updatePreview);
+
+    window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            handleSave();
+        }
+    });
 });
 
-// Função que busca uma pasta no Go e renderiza no HTML
+// --- FUNÇÕES GLOBAIS DE ARQUIVOS ---
 async function loadDirectory(path, container) {
     try {
         const dirNode = await GetDirectory(path);
         renderNodes(dirNode.children, container);
-    } catch (error) {
-        console.error("Erro ao carregar diretório:", error);
-        container.innerHTML = `<li style="color: var(--text-muted);">Erro ao carregar</li>`;
-    }
+    } catch (error) { console.error(error); }
 }
 
-let currentFilePath = ""; // Variável global para saber qual arquivo está aberto
+window.openFile = async (path) => {
+    try {
+        const note = await OpenNote(path);
+        currentFilePath = path;
+        document.getElementById('markdown-editor').value = note.content;
+        updatePreview();
+    } catch (error) { console.error(error); }
+};
 
-// Função para salvar o arquivo atual via Go
 async function handleSave() {
-    if (!currentFilePath) return;
-
+    if (!currentFilePath) {
+        alert("Nenhum arquivo aberto para salvar!");
+        return;
+    }
     const content = document.getElementById('markdown-editor').value;
     try {
         await SaveNote(currentFilePath, content);
-        console.log("Arquivo salvo com sucesso pelo Go!");
-        // Aqui você pode adicionar um pequeno feedback visual no UI
-    } catch (err) {
-        alert("Erro ao salvar: " + err);
-    }
+        alert("✅ Arquivo salvo com sucesso!");
+    } catch (err) { alert(err); }
 }
 
-// Atalho Ctrl+S (ou Cmd+S no Mac)
-window.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        handleSave();
-    }
-});
-// Função recursiva visual para desenhar a árvore
 function renderNodes(nodes, container) {
-    container.innerHTML = ''; // Limpa o "Carregando..."
-
-    if (!nodes || nodes.length === 0) {
-        container.innerHTML = `<li style="color: var(--text-muted); font-style: italic;">Vazio</li>`;
-        return;
-    }
-
-    // Ordena: Pastas primeiro (A-Z), depois arquivos (A-Z)
-    nodes.sort((a, b) => {
-        if (a.isDir === b.isDir) return a.name.localeCompare(b.name);
-        return a.isDir ? -1 : 1;
-    });
+    container.innerHTML = '';
+    if (!nodes) return;
+    nodes.sort((a, b) => (a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1));
 
     nodes.forEach(node => {
         const li = document.createElement('li');
-        li.style.cursor = 'pointer';
-        li.style.padding = '6px 0';
-        li.style.userSelect = 'none';
-
-        if (node.isDir) {
-            // É uma pasta
-            li.innerHTML = `<span>📁 ${node.name}</span>`;
-
-            // Container para as subpastas (inicia oculto e vazio)
-            const childrenContainer = document.createElement('ul');
-            childrenContainer.style.display = 'none';
-            childrenContainer.style.paddingLeft = '15px';
-            childrenContainer.style.listStyle = 'none';
-
-            li.onclick = async (e) => {
-                e.stopPropagation(); // Evita que o clique vaze para as pastas pais
-                const isClosed = childrenContainer.style.display === 'none';
-
-                if (isClosed) {
-                    // Se estiver abrindo pela primeira vez, busca no Go
-                    if (childrenContainer.innerHTML === '') {
-                        childrenContainer.innerHTML = '<li style="color: gray;">Carregando...</li>';
-                        await loadDirectory(node.path, childrenContainer);
-                    }
-                    childrenContainer.style.display = 'block';
-                    li.querySelector('span').textContent = `📂 ${node.name}`;
-                } else {
-                    // Se estiver fechando, apenas oculta
-                    childrenContainer.style.display = 'none';
-                    li.querySelector('span').textContent = `📁 ${node.name}`;
-                }
-            };
-
-            li.appendChild(childrenContainer);
-        } else {
-            // É um arquivo
-            const isMarkdown = node.name.endsWith('.md');
-            li.innerHTML = `<span>📄 ${node.name}</span>`;
-
-            // Destaca arquivos markdown visualmente
-            li.style.color = isMarkdown ? 'var(--text-primary)' : 'var(--text-muted)';
-
-            li.onclick = (e) => {
-                e.stopPropagation();
-                if (isMarkdown) {
-                    openFile(node.path);
-                } else {
-                    alert("Apenas arquivos Markdown (.md) são suportados para edição.");
-                }
-            };
-        }
-
-        // Efeito de hover simples via JS (Pode ser passado pro CSS depois)
-        li.addEventListener('mouseover', (e) => { e.stopPropagation(); li.style.opacity = '0.8'; });
-        li.addEventListener('mouseout', (e) => { e.stopPropagation(); li.style.opacity = '1'; });
-
+        li.innerHTML = `
+            <div class="file-item" style="display: flex; justify-content: space-between; cursor: pointer; padding: 4px;">
+                <div class="file-info" onclick="window.handleItemClick('${node.path}', ${node.isDir}, this)">
+                    <span>${node.isDir ? '📂' : '📄'}</span> ${node.name}
+                </div>
+                <div class="file-actions">
+                    <button class="action-btn btn-rename" onclick="event.stopPropagation(); window.renameItem('${node.path}', '${node.name}')">✏️</button>
+                    <button class="action-btn btn-delete" onclick="event.stopPropagation(); window.deleteItem('${node.path}')">🗑️</button>
+                </div>
+            </div>
+            <ul class="sub-dir" style="display: none; padding-left: 15px;"></ul>
+        `;
         container.appendChild(li);
     });
 }
 
-// Função para abrir o arquivo e jogar no editor
-// Modifique a função openFile existente para isto:
-async function openFile(path) {
-    try {
-        const note = await OpenNote(path);
-        currentFilePath = path; // Armazena o caminho para o SaveNote usar depois
-
-        const editor = document.getElementById('markdown-editor');
-        editor.value = note.content;
-        updatePreview();
-    } catch (error) {
-        console.error("Erro ao abrir arquivo:", error);
-    }
-}
-// ==========================================
-// LÓGICA DO EDITOR E MARKDOWN
-// ==========================================
-
-// Inicializa o Mermaid com o tema dark para combinar com o Aaron²
-mermaid.initialize({ startOnLoad: false, theme: 'dark' });
-
-// Inicializa o conversor Markdown com regras customizadas
-const md = window.markdownit({
-    html: true,
-    breaks: true,
-    linkify: true,
-
-    // Sobrescreve o renderizador padrão de blocos de código
-    highlight: function (str, lang) {
-        // 1. Regra para o Mermaid: Se a linguagem for 'mermaid', apenas cria a div para ele ler
-        if (lang && lang.toLowerCase() === 'mermaid') {
-            return `<div class="mermaid">${str}</div>`;
+window.handleItemClick = async (path, isDir, element) => {
+    if (isDir) {
+        const li = element.closest('li');
+        const ul = li.querySelector('.sub-dir');
+        if (ul.style.display === 'none') {
+            ul.style.display = 'block';
+            await loadDirectory(path, ul);
+        } else {
+            ul.style.display = 'none';
         }
-
-        // 2. Regra para o Prism: Tenta colorir o código nativamente
-        if (lang && Prism.languages[lang]) {
-            try {
-                return '<pre class="language-' + lang + '"><code class="language-' + lang + '">' +
-                    Prism.highlight(str, Prism.languages[lang], lang) +
-                    '</code></pre>';
-            } catch (__) {}
-        }
-
-        // 3. Fallback: Se não tiver linguagem, escapa o HTML normal
-        return '<pre class="language-none"><code class="language-none">' + md.utils.escapeHtml(str) + '</code></pre>';
+    } else {
+        await window.openFile(path);
     }
-});
+};
 
-let debounceTimer;
+window.deleteItem = async (path) => {
+    if (confirm("Tem certeza que deseja deletar?")) {
+        await DeleteNode(path);
+        await loadDirectory("./", document.getElementById('file-tree'));
+    }
+};
 
-// Função para atualizar o preview com Debounce
+window.renameItem = async (path, oldName) => {
+    const newName = prompt("Novo nome:", oldName);
+    if (newName && newName !== oldName) {
+        await RenameNode(path, path.replace(oldName, newName));
+        await loadDirectory("./", document.getElementById('file-tree'));
+    }
+};
+
 function updatePreview() {
-    const editor = document.getElementById('markdown-editor');
-    const preview = document.getElementById('markdown-preview');
-
     clearTimeout(debounceTimer);
-
-    // O debounce foi convertido para async para suportar a renderização do Mermaid
     debounceTimer = setTimeout(async () => {
-        const rawText = editor.value;
+        const editor = document.getElementById('markdown-editor');
+        const preview = document.getElementById('markdown-preview');
 
-        // Renderiza o HTML (neste momento, o Prism já colore o código)
-        const htmlContent = md.render(rawText);
-        preview.innerHTML = htmlContent;
-
-        // Após injetar o HTML, manda o Mermaid procurar as divs e desenhar os diagramas
+        preview.innerHTML = md.render(editor.value);
         try {
-            await mermaid.run({
-                querySelector: '.mermaid',
-                suppressErrors: true // Impede que o app trave se o usuário estiver na metade da digitação do diagrama
-            });
-        } catch (err) {
-            // Ignora silenciosamente erros de sintaxe incompletos durante a digitação
-        }
+            await mermaid.run({ querySelector: '.mermaid', suppressErrors: true });
+        } catch (err) {}
     }, 50);
-}
-
-async function runTerminal(command) {
-    try {
-        console.log(`Enviando comando para o Go: ${command}`);
-        const output = await ExecuteTerminalCommand(command);
-        console.log("Saída do Terminal Nativo:", output);
-        return output;
-    } catch (err) {
-        console.error("Erro no Terminal:", err);
-    }
-}
-// Escuta tudo o que é digitado no Editor e dispara a atualização
-document.addEventListener('DOMContentLoaded', () => {
-    const editor = document.getElementById('markdown-editor');
-    editor.addEventListener('input', updatePreview);
-    document.getElementById('btn-refresh').addEventListener('click', async () => {
-        const fileTree = document.getElementById('file-tree');
-        fileTree.innerHTML = '<li style="color: gray;">Atualizando...</li>';
-        await loadDirectory("./", fileTree);
-    });
-
-    // Lógica para o botão "Novo Arquivo"
-    document.getElementById('btn-new-file').addEventListener('click', async () => {
-        // Pede o nome do arquivo pro usuário (forma nativa e leve)
-        const fileName = prompt("Nome do novo arquivo (ex: nota.md):");
-
-        if (fileName) {
-            // Garante que tenha a extensão .md
-            const safeName = fileName.endsWith('.md') ? fileName : `${fileName}.md`;
-            const filePath = `./${safeName}`; // Cria na raiz do projeto para simplificar por enquanto
-
-            try {
-                // Chama a função nativa em Go que criamos!
-                await CreateFile(filePath);
-
-                // Atualiza a árvore visualmente
-                const fileTree = document.getElementById('file-tree');
-                await loadDirectory("./", fileTree);
-
-                // Já abre o arquivo novo no editor
-                openFile(filePath);
-            } catch (err) {
-                alert(`Erro ao criar arquivo: ${err}`);
-            }
-        }
-    });
-});
-
-// Instancia o Xterm.js
-const term = new Terminal({
-    theme: {
-        background: '#000000',
-        foreground: '#e2e8f0',
-        cursor: '#3b82f6'
-    },
-    fontFamily: 'var(--font-mono)',
-    fontSize: 14,
-    cursorBlink: true
-});
-
-// Anexa o terminal à div no HTML
-term.open(document.getElementById('terminal-container'));
-term.writeln('\x1b[1;34m⚡ Aaron² Terminal Iniciado (Sessão Persistente)\x1b[0m');
-
-// Inicia o processo nativo no Go
-try {
-    await StartTerminal();
-} catch (e) {
-    term.writeln(`\r\n\x1b[1;31mErro ao iniciar bash/powershell:\x1b[0m ${e}`);
-}
-
-// Escuta tudo o que o terminal do Go "cospe" e joga na tela
-window.runtime.EventsOn("terminal:output", (data) => {
-    // Formata as quebras de linha para o Xterm entender
-    term.write(data.replace(/\n/g, '\r\n'));
-});
-
-let currentInput = '';
-
-// Escuta a digitação do usuário
-term.onKey(async ({ key, domEvent }) => {
-    const printable = !domEvent.altKey && !domEvent.altGraphKey && !domEvent.ctrlKey && !domEvent.metaKey;
-
-    if (domEvent.keyCode === 13) { // Tecla ENTER
-        term.write('\r\n');
-        if (currentInput.trim() !== '') {
-            // Envia o comando + a quebra de linha (\n) pro Go processar
-            try {
-                await WriteTerminal(currentInput + "\n");
-            } catch (err) {
-                term.writeln(`\r\n\x1b[1;31mErro:\x1b[0m ${err}`);
-            }
-        }
-        currentInput = '';
-    } else if (domEvent.keyCode === 8) { // Tecla BACKSPACE
-        if (currentInput.length > 0) {
-            currentInput = currentInput.slice(0, -1);
-            term.write('\b \b');
-        }
-    } else if (printable) {
-        currentInput += key;
-        term.write(key);
-    }
-    });
-
-function prompt(term) {
-    term.write('\r\n\x1b[1;32m$\x1b[0m ');
 }
