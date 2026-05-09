@@ -22,8 +22,16 @@ export function OpenNote(arg1) {
   return window['go']['app']['App']['OpenNote'](arg1);
 }
 
+export function ReadImageBase64(arg1) {
+  return window['go']['app']['App']['ReadImageBase64'](arg1);
+}
+
 export function RenameNode(arg1, arg2) {
   return window['go']['app']['App']['RenameNode'](arg1, arg2);
+}
+
+export function SaveImage(arg1, arg2) {
+  return window['go']['app']['App']['SaveImage'](arg1, arg2);
 }
 
 export function SaveNote(arg1, arg2) {

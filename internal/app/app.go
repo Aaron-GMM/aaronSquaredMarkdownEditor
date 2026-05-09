@@ -58,7 +58,12 @@ func (a *App) DeleteNode(path string) error {
 func (a *App) RenameNode(oldPath, newPath string) error {
 	return filesystem.RenameNode(oldPath, newPath)
 }
-
+func (a *App) SaveImage(path string, base64Data string) error {
+	return filesystem.SaveImage(path, base64Data)
+}
+func (a *App) ReadImageBase64(path string) (string, error) {
+	return filesystem.ReadImageBase64(path)
+}
 func (a *App) StartTerminal() error {
 	// Se já existir um, mata antes de criar outro
 	if a.shell != nil {

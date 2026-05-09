@@ -81,6 +81,52 @@ body {
     font-size: 14px;
 }
 
+/* Estilos para os itens da árvore com ações */
+.file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.file-item:hover {
+    background-color: var(--border-color);
+}
+
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.file-actions {
+    display: none; /* Escondido por padrão */
+    gap: 5px;
+}
+
+.file-item:hover .file-actions {
+    display: flex; /* Mostra ao passar o rato */
+}
+
+.action-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.action-btn:hover {
+    opacity: 1;
+}
+
+.btn-delete:hover { color: #f87171; }
+.btn-rename:hover { color: #fbbf24; }
+
 /* Workspace (Split Editor/Preview) */
 /* Modifique as regras do Workspace existentes para isto: */
 #workspace {

@@ -12,7 +12,11 @@ export function GetDirectory(arg1:string):Promise<domain.FileNode>;
 
 export function OpenNote(arg1:string):Promise<domain.Note>;
 
+export function ReadImageBase64(arg1:string):Promise<string>;
+
 export function RenameNode(arg1:string,arg2:string):Promise<void>;
+
+export function SaveImage(arg1:string,arg2:string):Promise<void>;
 
 export function SaveNote(arg1:string,arg2:string):Promise<void>;
 
