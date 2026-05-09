@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/domain"
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/infra/filesystem"
@@ -10,7 +11,8 @@ import (
 
 // App struct
 type App struct {
-	ctx context.Context
+	ctx   context.Context
+	shell *terminal.ShellSession // Mantém o terminal vivo na memória
 }
 
 // NewApp cria uma nova instância da aplicação
@@ -56,7 +58,34 @@ func (a *App) DeleteNode(path string) error {
 func (a *App) RenameNode(oldPath, newPath string) error {
 	return filesystem.RenameNode(oldPath, newPath)
 }
-func (a *App) ExecuteTerminalCommand(command string) (string, error) {
-	shell := &terminal.ShellManager{Ctx: a.ctx}
-	return shell.ExecuteCommand(command)
+
+func (a *App) StartTerminal() error {
+	// Se já existir um, mata antes de criar outro
+	if a.shell != nil {
+		a.shell.Close()
+	}
+
+	session, err := terminal.NewShellSession(a.ctx)
+	if err != nil {
+		return fmt.Errorf("falha ao iniciar terminal: %v", err)
+	}
+
+	a.shell = session
+	return nil
+}
+
+// WriteTerminal envia teclas/comandos para o processo que está rodando
+func (a *App) WriteTerminal(input string) error {
+	if a.shell == nil {
+		return fmt.Errorf("terminal não está rodando")
+	}
+	return a.shell.Write(input)
+}
+
+// StopTerminal expõe a função para matar o processo manualmente (limpeza de zumbis)
+func (a *App) StopTerminal() error {
+	if a.shell != nil {
+		return a.shell.Close()
+	}
+	return nil
 }
