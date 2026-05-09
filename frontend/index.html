@@ -24,8 +24,21 @@
 
     <main id="workspace">
         <div id="editor-preview-split">
-            <div id="editor-container">
-                <textarea id="markdown-editor" placeholder="Comece a escrever seu Markdown aqui..."></textarea>
+            <div id="editor-container" style="position: relative;">
+                <textarea id="markdown-editor" placeholder="Comece a escrever seu Markdown aqui... (Digite / para atalhos)"></textarea>
+
+                <div id="slash-menu" class="slash-menu hidden">
+                    <div class="slash-title">Atalhos de Formatação</div>
+                    <div class="slash-item selected" data-action="table">
+                        <span>📊</span> Tabela
+                    </div>
+                    <div class="slash-item" data-action="code">
+                        <span>💻</span> Bloco de Código
+                    </div>
+                    <div class="slash-item" data-action="mermaid">
+                        <span>🌊</span> Diagrama (Mermaid)
+                    </div>
+                </div>
             </div>
             <div id="preview-container">
                 <div id="markdown-preview">O preview aparecerá aqui.</div>
