@@ -11,22 +11,35 @@
     <aside id="sidebar">
         <div class="sidebar-header">
             <h2>A² Explorer</h2>
+            <div class="sidebar-actions">
+                <button id="btn-new-file" title="Novo Arquivo">📄 +</button>
+                <button id="btn-refresh" title="Atualizar">🔄</button>
+            </div>
         </div>
         <ul id="file-tree">
         </ul>
     </aside>
 
     <main id="workspace">
-        <div id="editor-container">
-            <textarea id="markdown-editor" placeholder="Comece a escrever seu Markdown aqui..."></textarea>
+        <div id="editor-preview-split">
+            <div id="editor-container">
+                <textarea id="markdown-editor" placeholder="Comece a escrever seu Markdown aqui..."></textarea>
+            </div>
+            <div id="preview-container">
+                <div id="markdown-preview">O preview aparecerá aqui.</div>
+            </div>
         </div>
-        <div id="preview-container">
-            <div id="markdown-preview">O preview aparecerá aqui.</div>
+
+        <div id="bottom-panel">
+            <div id="terminal-container"></div>
         </div>
     </main>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
 
 <script src="./src/main.js" type="module"></script>
 </body>

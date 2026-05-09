@@ -1,4 +1,11 @@
-import { GetDirectory, OpenNote } from './services/wailsjs/go/app/App.js';
+import {
+    GetDirectory,
+    OpenNote,
+    SaveNote,
+    CreateFile,
+    DeleteNode,
+    ExecuteTerminalCommand
+} from './services/wailsjs/go/app/App.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     const fileTree = document.getElementById('file-tree');
@@ -19,6 +26,29 @@ async function loadDirectory(path, container) {
     }
 }
 
+let currentFilePath = ""; // Variável global para saber qual arquivo está aberto
+
+// Função para salvar o arquivo atual via Go
+async function handleSave() {
+    if (!currentFilePath) return;
+
+    const content = document.getElementById('markdown-editor').value;
+    try {
+        await SaveNote(currentFilePath, content);
+        console.log("Arquivo salvo com sucesso pelo Go!");
+        // Aqui você pode adicionar um pequeno feedback visual no UI
+    } catch (err) {
+        alert("Erro ao salvar: " + err);
+    }
+}
+
+// Atalho Ctrl+S (ou Cmd+S no Mac)
+window.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+    }
+});
 // Função recursiva visual para desenhar a árvore
 function renderNodes(nodes, container) {
     container.innerHTML = ''; // Limpa o "Carregando..."
@@ -101,17 +131,13 @@ function renderNodes(nodes, container) {
 async function openFile(path) {
     try {
         const note = await OpenNote(path);
+        currentFilePath = path; // Armazena o caminho para o SaveNote usar depois
+
         const editor = document.getElementById('markdown-editor');
-
-        // Joga o texto no editor
         editor.value = note.content;
-
-        // Dispara a renderização inicial do Preview
         updatePreview();
-
     } catch (error) {
         console.error("Erro ao abrir arquivo:", error);
-        alert(`Não foi possível abrir o arquivo: ${error}`);
     }
 }
 // ==========================================
@@ -143,8 +169,104 @@ function updatePreview() {
     }, 50);
 }
 
+async function runTerminal(command) {
+    try {
+        console.log(`Enviando comando para o Go: ${command}`);
+        const output = await ExecuteTerminalCommand(command);
+        console.log("Saída do Terminal Nativo:", output);
+        return output;
+    } catch (err) {
+        console.error("Erro no Terminal:", err);
+    }
+}
 // Escuta tudo o que é digitado no Editor e dispara a atualização
 document.addEventListener('DOMContentLoaded', () => {
     const editor = document.getElementById('markdown-editor');
     editor.addEventListener('input', updatePreview);
+    document.getElementById('btn-refresh').addEventListener('click', async () => {
+        const fileTree = document.getElementById('file-tree');
+        fileTree.innerHTML = '<li style="color: gray;">Atualizando...</li>';
+        await loadDirectory("./", fileTree);
+    });
+
+    // Lógica para o botão "Novo Arquivo"
+    document.getElementById('btn-new-file').addEventListener('click', async () => {
+        // Pede o nome do arquivo pro usuário (forma nativa e leve)
+        const fileName = prompt("Nome do novo arquivo (ex: nota.md):");
+
+        if (fileName) {
+            // Garante que tenha a extensão .md
+            const safeName = fileName.endsWith('.md') ? fileName : `${fileName}.md`;
+            const filePath = `./${safeName}`; // Cria na raiz do projeto para simplificar por enquanto
+
+            try {
+                // Chama a função nativa em Go que criamos!
+                await CreateFile(filePath);
+
+                // Atualiza a árvore visualmente
+                const fileTree = document.getElementById('file-tree');
+                await loadDirectory("./", fileTree);
+
+                // Já abre o arquivo novo no editor
+                openFile(filePath);
+            } catch (err) {
+                alert(`Erro ao criar arquivo: ${err}`);
+            }
+        }
+    });
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Instancia o Xterm.js
+    const term = new Terminal({
+        theme: {
+            background: '#000000',
+            foreground: '#e2e8f0',
+            cursor: '#3b82f6'
+        },
+        fontFamily: 'var(--font-mono)',
+        fontSize: 14,
+        cursorBlink: true
+    });
+
+    // Anexa o terminal à div no HTML
+    term.open(document.getElementById('terminal-container'));
+    term.writeln('\x1b[1;34m⚡ Aaron² Terminal Iniciado\x1b[0m');
+    prompt(term);
+
+    let currentInput = '';
+
+    // Escuta a digitação do usuário
+    term.onKey(async ({ key, domEvent }) => {
+        const printable = !domEvent.altKey && !domEvent.altGraphKey && !domEvent.ctrlKey && !domEvent.metaKey;
+
+        if (domEvent.keyCode === 13) { // Tecla ENTER
+            term.write('\r\n');
+            if (currentInput.trim() !== '') {
+                // Chama o Go para executar o comando nativo!
+                try {
+                    const output = await ExecuteTerminalCommand(currentInput);
+                    // O output vem do Go com quebras de linha normais (\n),
+                    // o Xterm precisa de carriage return + newline (\r\n)
+                    term.write(output.replace(/\n/g, '\r\n'));
+                } catch (err) {
+                    term.writeln(`\x1b[1;31mErro:\x1b[0m ${err}`);
+                }
+            }
+            currentInput = '';
+            prompt(term);
+        } else if (domEvent.keyCode === 8) { // Tecla BACKSPACE
+            if (currentInput.length > 0) {
+                currentInput = currentInput.slice(0, -1);
+                term.write('\b \b');
+            }
+        } else if (printable) {
+            currentInput += key;
+            term.write(key);
+        }
+    });
+});
+
+function prompt(term) {
+    term.write('\r\n\x1b[1;32m$\x1b[0m ');
+}
