@@ -193,6 +193,108 @@ document.addEventListener('DOMContentLoaded', async () => {
             handleSave();
         }
     });
+
+    // --- LÓGICA DO SLASH COMMANDS (Menu /) ---
+    const slashMenu = document.getElementById('slash-menu');
+    const slashItems = document.querySelectorAll('.slash-item');
+    let slashMenuOpen = false;
+    let selectedIndex = 0;
+
+    // Escuta a digitação normal
+    editor.addEventListener('input', () => {
+        const cursorPos = editor.selectionStart;
+        const textBeforeCursor = editor.value.substring(0, cursorPos);
+
+        // Expressão Regular (Regex) para ver se o cursor está imediatamente após um "/"
+        // no início do texto ou após uma quebra de linha.
+        const match = textBeforeCursor.match(/(?:^|\n)\/$/);
+
+        if (match) {
+            openSlashMenu();
+        } else if (slashMenuOpen) {
+            // Se estava aberto mas apagou o "/", fecha o menu
+            closeSlashMenu();
+        }
+    });
+
+    // Escuta teclas de controlo (Setas, Enter, Esc)
+    editor.addEventListener('keydown', (e) => {
+        if (!slashMenuOpen) return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            selectedIndex = (selectedIndex + 1) % slashItems.length;
+            updateSlashSelection();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            selectedIndex = (selectedIndex - 1 + slashItems.length) % slashItems.length;
+            updateSlashSelection();
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            executeSlashCommand(slashItems[selectedIndex].getAttribute('data-action'));
+        } else if (e.key === 'Escape' || e.key === ' ') {
+            closeSlashMenu();
+        }
+    });
+
+    // Permitir clique com o rato nas opções
+    slashItems.forEach((item, index) => {
+        item.addEventListener('mouseenter', () => {
+            selectedIndex = index;
+            updateSlashSelection();
+        });
+        item.addEventListener('click', () => {
+            executeSlashCommand(item.getAttribute('data-action'));
+            editor.focus(); // Devolve o cursor para o editor
+        });
+    });
+
+    // Funções auxiliares do Menu Slash
+    function openSlashMenu() {
+        slashMenuOpen = true;
+        slashMenu.classList.add('active');
+        selectedIndex = 0;
+        updateSlashSelection();
+    }
+
+    function closeSlashMenu() {
+        slashMenuOpen = false;
+        slashMenu.classList.remove('active');
+    }
+
+    function updateSlashSelection() {
+        slashItems.forEach(item => item.classList.remove('selected'));
+        slashItems[selectedIndex].classList.add('selected');
+    }
+
+    function executeSlashCommand(action) {
+        const cursorPos = editor.selectionStart;
+        const textBefore = editor.value.substring(0, cursorPos);
+        const textAfter = editor.value.substring(editor.selectionEnd);
+
+        // Remove a barra '/' que o utilizador digitou
+        const cleanTextBefore = textBefore.substring(0, textBefore.length - 1);
+
+        let insertText = "";
+
+        // Templates de Markdown
+        if (action === 'table') {
+            insertText = "| Cabeçalho 1 | Cabeçalho 2 |\n| ----------- | ----------- |\n| Valor       | Valor       |\n";
+        } else if (action === 'code') {
+            insertText = "```javascript\n// O seu código aqui\n```\n";
+        } else if (action === 'mermaid') {
+            insertText = "```mermaid\ngraph TD;\n    A[Início] --> B[Fim];\n```\n";
+        }
+
+        // Atualiza o texto do editor
+        editor.value = cleanTextBefore + insertText + textAfter;
+
+        // Move o cursor para o fim do bloco inserido
+        editor.selectionStart = editor.selectionEnd = cleanTextBefore.length + insertText.length;
+
+        closeSlashMenu();
+        updatePreview();
+    }
 });
 
 // --- FUNÇÕES GLOBAIS DE ARQUIVOS ---

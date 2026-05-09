@@ -183,3 +183,56 @@ body {
     resize: none;
     outline: none;
 }
+
+/* ==========================================
+   MENU SLASH (COMANDOS FLUTUANTES)
+   ========================================== */
+.slash-menu {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 220px;
+    background-color: #1e293b; /* Fundo escuro */
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-10px);
+    transition: all 0.2s ease;
+}
+
+.slash-menu.active {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+.slash-title {
+    padding: 10px 15px;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-color);
+    background-color: rgba(0,0,0,0.2);
+}
+
+.slash-item {
+    padding: 10px 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: background 0.1s;
+}
+
+.slash-item:hover, .slash-item.selected {
+    background-color: #3b82f6; /* Azul de destaque */
+    color: white;
+}
