@@ -20,6 +20,8 @@ export function SaveImage(arg1:string,arg2:string):Promise<void>;
 
 export function SaveNote(arg1:string,arg2:string):Promise<void>;
 
+export function SelectFolder():Promise<string>;
+
 export function StartTerminal():Promise<void>;
 
 export function StopTerminal():Promise<void>;

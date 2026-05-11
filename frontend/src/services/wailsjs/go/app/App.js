@@ -38,6 +38,10 @@ export function SaveNote(arg1, arg2) {
   return window['go']['app']['App']['SaveNote'](arg1, arg2);
 }
 
+export function SelectFolder() {
+  return window['go']['app']['App']['SelectFolder']();
+}
+
 export function StartTerminal() {
   return window['go']['app']['App']['StartTerminal']();
 }

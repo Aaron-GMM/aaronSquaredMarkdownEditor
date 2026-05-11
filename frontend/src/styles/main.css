@@ -1,138 +1,99 @@
-/* Sistema de Cores e Variáveis (Dark Mode Default) */
 :root {
-    --bg-base: #1b2636;        /* Fundo da Sidebar e UI externa */
-    --bg-workspace: #0f172a;   /* Fundo do Editor (mais escuro) */
-    --text-primary: #e2e8f0;   /* Texto principal */
-    --text-muted: #94a3b8;     /* Texto secundário/pastas */
-    --accent: #3b82f6;         /* Cor de destaque (Azul) */
-    --border-color: #334155;   /* Bordas divisórias */
+    --bg-darker: #020617;       /* Titlebar */
+    --bg-main: #0f172a;         /* Fundo Editor */
+    --bg-sidebar: #1e293b;      /* Sidebar */
+    --border-color: #334155;    /* Bordas sutis */
+    --accent-blue: #3b82f6;     /* Azul de destaque */
+    --text-primary: #f8fafc;
+    --text-muted: #94a3b8;
     --font-mono: 'Consolas', 'Courier New', monospace;
-    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-/* Reset Básico */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
 }
 
 body {
-    background-color: var(--bg-workspace);
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-main);
     color: var(--text-primary);
-    font-family: var(--font-sans);
-    height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     overflow: hidden;
 }
 
-/* Layout Principal */
 #app-container {
     display: flex;
-    height: 100vh;
-    width: 100vw;
-}
-
-/* Sidebar */
-#sidebar {
-    width: 250px;
-    background-color: var(--bg-base);
-    border-right: 1px solid var(--border-color);
-    display: flex;
     flex-direction: column;
+    height: 100vh;
 }
 
-.sidebar-header {
-    padding: 15px;
+/* ==========================================
+   TITLEBAR MODERNA (FRAMELESS)
+   ========================================== */
+#titlebar {
+    height: 35px;
+    background-color: var(--bg-darker);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     border-bottom: 1px solid var(--border-color);
+    user-select: none;
+    position: relative;
+    z-index: 9999;
 }
 
-.sidebar-header h2 {
-    font-size: 14px;
+.titlebar-logo {
+    font-size: 13px;
     font-weight: 600;
-    text-transform: uppercase;
+    color: var(--text-muted);
+    padding-left: 15px;
     letter-spacing: 1px;
-    color: var(--text-muted);
-}
-/* Botões da Sidebar */
-.sidebar-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
 }
 
-.sidebar-actions button {
+.titlebar-controls {
+    display: flex;
+    height: 100%;
+    position: relative;
+    z-index: 10000;
+}
+
+.control-btn {
     background: transparent;
     border: none;
     color: var(--text-muted);
-    cursor: pointer;
-    font-size: 14px;
-    margin-left: 5px;
-    transition: color 0.2s;
-}
-
-.sidebar-actions button:hover {
-    color: var(--text-primary);
-}
-
-#file-tree {
-    list-style: none;
-    padding: 10px;
-    overflow-y: auto;
-    font-size: 14px;
-}
-
-/* Estilos para os itens da árvore com ações */
-.file-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 4px 8px;
-    border-radius: 4px;
-    transition: background 0.2s;
-}
-
-.file-item:hover {
-    background-color: var(--border-color);
-}
-
-.file-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
-}
-
-.file-actions {
-    display: none; /* Escondido por padrão */
-    gap: 5px;
-}
-
-.file-item:hover .file-actions {
-    display: flex; /* Mostra ao passar o rato */
-}
-
-.action-btn {
-    background: transparent;
-    border: none;
+    width: 45px;
+    height: 100%;
     cursor: pointer;
     font-size: 12px;
-    opacity: 0.6;
-    transition: opacity 0.2s;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto !important;
+    -webkit-app-region: no-drag;
 }
 
-.action-btn:hover {
-    opacity: 1;
+.control-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
 }
 
-.btn-delete:hover { color: #f87171; }
-.btn-rename:hover { color: #fbbf24; }
+.close-btn:hover {
+    background-color: #e81123 !important;
+    color: white;
+}
 
-/* Workspace (Split Editor/Preview) */
-/* Modifique as regras do Workspace existentes para isto: */
+/* ==========================================
+   LAYOUT GERAL
+   ========================================== */
+#main-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
 #workspace {
     flex: 1;
     display: flex;
-    flex-direction: column; /* Empilha Editor em cima, Terminal embaixo */
+    flex-direction: column;
+    overflow: hidden;
 }
 
 #editor-preview-split {
@@ -151,55 +112,220 @@ body {
     border-right: 1px solid var(--border-color);
 }
 
-/* Novo: Estilos do Terminal */
-#bottom-panel {
-    height: 250px; /* Altura fixa inicial do terminal */
-    background-color: #000000; /* Fundo preto clássico de terminal */
-    border-top: 1px solid var(--border-color);
+textarea {
+    width: 100%;
+    height: 100%;
+    background-color: transparent;
+    color: var(--text-primary);
+    border: none;
+    resize: none;
+    outline: none;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* ==========================================
+   SIDEBAR & RESIZER
+   ========================================== */
+#sidebar {
+    width: 250px;
+    min-width: 150px;
+    max-width: 500px;
+    background-color: var(--bg-sidebar);
+    display: flex;
+    flex-direction: column;
+}
+
+#sidebar-resizer {
+    width: 4px;
+    cursor: col-resize;
+    background: transparent;
+    transition: background 0.3s;
+    z-index: 10;
+}
+
+#sidebar-resizer:hover, #sidebar-resizer.active {
+    background: var(--accent-blue);
+}
+
+.sidebar-header {
+    padding: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-header h2 {
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin: 0 0 10px 0;
+}
+
+.sidebar-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.sidebar-actions button {
+    background-color: transparent;
+    color: var(--text-muted);
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar-actions button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+#file-tree {
+    list-style: none;
     padding: 10px;
+    margin: 0;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #ccc;
+    border-left: 2px solid transparent;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.file-item:hover {
+    background: rgba(255,255,255,0.05);
+    border-left-color: var(--accent-blue);
+    color: white;
+}
+
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.file-actions {
+    display: none;
+    gap: 5px;
+}
+
+.file-item:hover .file-actions {
     display: flex;
 }
+
+.action-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.action-btn:hover { opacity: 1; }
+
+.sidebar-footer {
+    padding: 10px;
+    border-top: 1px solid var(--border-color);
+}
+
+#btn-open-terminal {
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 6px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+#btn-open-terminal:hover {
+    background: var(--accent-blue);
+    color: white;
+    border-color: var(--accent-blue);
+}
+
+/* ==========================================
+   TERMINAL INFERIOR
+   ========================================== */
+#bottom-panel {
+    height: 250px;
+    background: #000000;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+}
+
+#bottom-panel.hidden {
+    display: none !important;
+}
+
+.panel-header {
+    background: var(--bg-sidebar);
+    padding: 4px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    font-weight: bold;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.panel-actions button {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.panel-actions button:hover { color: #fff; }
 
 #terminal-container {
     flex: 1;
     width: 100%;
     height: 100%;
     overflow: hidden;
+    padding: 5px;
 }
 
-/* Ajuste fino para a barra de rolagem do Xterm não bugar o layout */
-.xterm-viewport {
-    overflow-y: auto !important;
-}
-
-#markdown-editor {
-    width: 100%;
-    height: 100%;
-    background: transparent;
-    border: none;
-    color: var(--text-primary);
-    font-family: var(--font-mono);
-    font-size: 14px;
-    resize: none;
-    outline: none;
-}
+.xterm-viewport { overflow-y: auto !important; }
 
 /* ==========================================
-   MENU SLASH (COMANDOS FLUTUANTES)
+   MENU SLASH E PDF MODO
    ========================================== */
 .slash-menu {
     position: absolute;
     top: 20px;
     right: 20px;
     width: 220px;
-    background-color: #1e293b; /* Fundo escuro */
+    background-color: var(--bg-sidebar);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
     display: flex;
     flex-direction: column;
     z-index: 100;
-    overflow: hidden;
     opacity: 0;
     pointer-events: none;
     transform: translateY(-10px);
@@ -233,73 +359,16 @@ body {
 }
 
 .slash-item:hover, .slash-item.selected {
-    background-color: #3b82f6; /* Azul de destaque */
+    background-color: var(--accent-blue);
     color: white;
 }
-/* ==========================================
-   REGRAS DE EXPORTAÇÃO PARA PDF (PRINT)
-   ========================================== */
-@media print {
-    /* Esconde elementos da interface */
-    #sidebar,
-    #editor-container,
-    #bottom-panel,
-    .sidebar-actions,
-    .slash-menu,
-    #btn-export-pdf {
-        display: none !important;
-    }
 
-    /* Expande o preview para ocupar a página toda */
-    #app-container, #workspace, #editor-preview-split, #preview-container {
-        display: block !important;
-        width: 100% !important;
-        height: auto !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow: visible !important;
-    }
-
-    #markdown-preview {
-        padding: 2cm !important; /* Margens padrão de documento */
-        color: black !important;
-        background-color: white !important;
-        font-size: 12pt;
-    }
-
-    /* Garante que quebras de página sejam respeitadas em títulos */
-    h1, h2, h3 {
-        page-break-after: avoid;
-    }
-}
-/* ==========================================
-   MODO DE EXPORTAÇÃO PDF (FORÇA CORES CLARAS E TEXTO PRETO)
-   ========================================== */
-.pdf-export-mode {
-    background-color: #ffffff !important;
-}
-
-/* Força absolutamente TODO O TEXTO a ficar preto */
-.pdf-export-mode,
-.pdf-export-mode * {
-    color: #000000 !important;
-}
-
-/* Controla o tamanho das imagens para não roubarem a página toda */
-.pdf-export-mode img {
-    max-width: 80% !important;
-    display: block !important;
-    margin: 15px auto !important;
-    border: 1px solid #e2e8f0;
-}
-
-/* Exceção: Blocos de código mantêm o aspeto de programação, mas com fundo claro */
-.pdf-export-mode pre,
-.pdf-export-mode code,
-.pdf-export-mode pre *,
-.pdf-export-mode code * {
+.pdf-export-mode { background-color: #ffffff !important; }
+.pdf-export-mode, .pdf-export-mode * { color: #000000 !important; }
+.pdf-export-mode img { max-width: 80% !important; display: block !important; margin: 15px auto !important; border: 1px solid #e2e8f0; }
+.pdf-export-mode pre, .pdf-export-mode code, .pdf-export-mode pre *, .pdf-export-mode code * {
     background-color: #f1f5f9 !important;
-    color: #0f172a !important; /* Azul muito escuro/quase preto para código */
+    color: #0f172a !important;
     text-shadow: none !important;
     border-color: #cbd5e1 !important;
 }

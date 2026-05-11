@@ -7,6 +7,7 @@ import (
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/domain"
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/infra/filesystem"
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/infra/terminal"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct
@@ -52,6 +53,15 @@ func (a *App) CreateDirectory(path string) error {
 // DeleteNode remove um item do disco
 func (a *App) DeleteNode(path string) error {
 	return filesystem.DeleteNode(path)
+}
+func (a *App) SelectFolder() (string, error) {
+	folder, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Selecionar Pasta de Notas",
+	})
+	if err != nil {
+		return "", err
+	}
+	return folder, nil
 }
 
 // RenameNode altera o nome ou caminho de um item
