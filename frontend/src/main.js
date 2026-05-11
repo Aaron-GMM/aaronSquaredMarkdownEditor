@@ -21,7 +21,46 @@ mermaid.initialize({ startOnLoad: false, theme: 'dark' });
 document.addEventListener('DOMContentLoaded', async () => {
     const fileTree = document.getElementById('file-tree');
     const editor = document.getElementById('markdown-editor');
+    document.getElementById('btn-export-pdf').onclick = async () => {
+        if (document.getElementById('markdown-editor').value.trim() === "") {
+            alert("A nota está vazia!");
+            return;
+        }
 
+        const element = document.getElementById('markdown-preview');
+
+        const opt = {
+            margin:       15,
+            filename:     'aaron_nota.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        alert("Gerando PDF... Aguarde um momento.");
+
+        // 1. APLICA O MODO CLARO
+        element.classList.add('pdf-export-mode');
+
+        // TRUQUE MÁGICO: Espera 150ms para garantir que o navegador repintou todas as letras de preto
+        await new Promise(resolve => setTimeout(resolve, 150));
+
+        try {
+            const dataUri = await html2pdf().set(opt).from(element).outputPdf('datauristring');
+            const base64Data = dataUri.split(',')[1];
+
+            const filePath = `./aaron_export_${Date.now()}.pdf`;
+            await SaveImage(filePath, base64Data);
+            await loadDirectory("./", document.getElementById('file-tree'));
+
+            alert(`✅ Sucesso! O PDF foi guardado no projeto como: ${filePath}`);
+        } catch (err) {
+            alert("Erro ao gerar o PDF via Go: " + err);
+        } finally {
+            // 2. REMOVE A CLASSE E VOLTA AO MODO ESCURO
+            element.classList.remove('pdf-export-mode');
+        }
+    };
     // 1. Inicia o Terminal
     const term = new Terminal({
         theme: { background: '#000000', foreground: '#e2e8f0', cursor: '#3b82f6' },
