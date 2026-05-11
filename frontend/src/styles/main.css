@@ -236,3 +236,70 @@ body {
     background-color: #3b82f6; /* Azul de destaque */
     color: white;
 }
+/* ==========================================
+   REGRAS DE EXPORTAÇÃO PARA PDF (PRINT)
+   ========================================== */
+@media print {
+    /* Esconde elementos da interface */
+    #sidebar,
+    #editor-container,
+    #bottom-panel,
+    .sidebar-actions,
+    .slash-menu,
+    #btn-export-pdf {
+        display: none !important;
+    }
+
+    /* Expande o preview para ocupar a página toda */
+    #app-container, #workspace, #editor-preview-split, #preview-container {
+        display: block !important;
+        width: 100% !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+
+    #markdown-preview {
+        padding: 2cm !important; /* Margens padrão de documento */
+        color: black !important;
+        background-color: white !important;
+        font-size: 12pt;
+    }
+
+    /* Garante que quebras de página sejam respeitadas em títulos */
+    h1, h2, h3 {
+        page-break-after: avoid;
+    }
+}
+/* ==========================================
+   MODO DE EXPORTAÇÃO PDF (FORÇA CORES CLARAS E TEXTO PRETO)
+   ========================================== */
+.pdf-export-mode {
+    background-color: #ffffff !important;
+}
+
+/* Força absolutamente TODO O TEXTO a ficar preto */
+.pdf-export-mode,
+.pdf-export-mode * {
+    color: #000000 !important;
+}
+
+/* Controla o tamanho das imagens para não roubarem a página toda */
+.pdf-export-mode img {
+    max-width: 80% !important;
+    display: block !important;
+    margin: 15px auto !important;
+    border: 1px solid #e2e8f0;
+}
+
+/* Exceção: Blocos de código mantêm o aspeto de programação, mas com fundo claro */
+.pdf-export-mode pre,
+.pdf-export-mode code,
+.pdf-export-mode pre *,
+.pdf-export-mode code * {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important; /* Azul muito escuro/quase preto para código */
+    text-shadow: none !important;
+    border-color: #cbd5e1 !important;
+}
