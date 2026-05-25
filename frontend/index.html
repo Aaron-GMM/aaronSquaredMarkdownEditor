@@ -21,11 +21,18 @@
         <aside id="sidebar">
             <div class="sidebar-header">
                 <h2>EXPLORER</h2>
+                <select id="language-selector" class="lang-select" title="Padrão do Teclado">
+                    <option value="pt-BR">PT-BR</option>
+                    <option value="en-US">EN-US</option>
+                    <option value="es-ES">ES-ES</option>
+                    <option value="fr-FR">FR-FR</option>
+                    <option value="de-DE">DE-DE</option>
+                </select>
                 <div class="sidebar-actions">
                     <button id="btn-open-folder" title="Abrir Pasta Externa">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                     </button>
-                    <button id="btn-new-file" title="Novo Arquivo">...</button>
+                    <button id="btn-new-file" title="Novo Arquivo">+</button>
              
                     <button id="btn-insert-image" title="Inserir Imagem">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
@@ -36,6 +43,9 @@
                     <input type="file" id="image-upload" accept="image/*" style="display: none;" />
                     <button id="btn-refresh" title="Atualizar">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                    </button>
+                    <button class="action-btn" id="btn-settings" title="Configurações (IA)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                     </button>
                 </div>
             </div>
@@ -51,13 +61,28 @@
         <main id="workspace">
             <div id="editor-preview-split">
                 <div id="editor-container" style="position: relative;">
-                    <textarea id="markdown-editor" placeholder="Escreva o seu Markdown... (Digite / para atalhos)"></textarea>
-
-                    <div id="slash-menu" class="slash-menu hidden">
-                        <div class="slash-title">Formatação</div>
-                        <div class="slash-item selected" data-action="table"><span>📊</span> Tabela</div>
-                        <div class="slash-item" data-action="code"><span>💻</span> Código</div>
-                        <div class="slash-item" data-action="mermaid"><span>🌊</span> Diagrama</div>
+                    <textarea id="markdown-editor" spellcheck="false" placeholder="Escreva o seu Markdown... (Digite / para atalhos)"></textarea>
+                    <div id="slash-menu" class="slash-menu">
+                        <div class="slash-item" data-action="image">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                            Inserir Imagem
+                        </div>
+                        <div class="slash-item" data-action="ai">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                            Gerar com IA
+                        </div>
+                        <div class="slash-item" data-action="table">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>
+                            Tabela
+                        </div>
+                        <div class="slash-item" data-action="code">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                            Bloco de Código
+                        </div>
+                        <div class="slash-item" data-action="mermaid">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+                            Diagrama (Mermaid)
+                        </div>
                     </div>
                 </div>
                 <div id="preview-container">
@@ -78,6 +103,47 @@
     </div>
 </div>
 
+
+
+<div id="settings-modal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 style="display: flex; align-items: center; gap: 8px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                Configurações
+            </h3>
+            <button id="btn-close-settings" class="action-btn">✕</button>
+        </div>
+        <div class="modal-body">
+            <label for="groq-api-key">Chave de API (Groq - IA Gratuita):</label>
+            <input type="password" id="groq-api-key" placeholder="Cole a sua chave gsk_... aqui" />
+            <small style="color: var(--text-muted); font-size: 11px;">
+                Obtenha a sua chave gratuita em console.groq.com
+            </small>
+            <p id="settings-status-msg" style="display: none; font-size: 12px; margin-top: 5px;"></p>
+        </div>
+        <div class="modal-footer" style="margin-top: 15px; text-align: right;">
+            <button id="btn-save-settings" class="btn-primary">Validar e Salvar</button>
+        </div>
+    </div>
+</div>
+
+<div id="custom-dialog" class="modal hidden">
+    <div class="modal-content" style="width: 380px;">
+        <div class="modal-header">
+            <h3 id="dialog-title" style="display: flex; align-items: center; gap: 8px; font-size: 15px;">Título</h3>
+        </div>
+        <div class="modal-body">
+            <p id="dialog-message" style="margin-bottom: 12px; color: var(--text-muted); font-size: 13px;"></p>
+            <input type="text" id="dialog-input" style="display: none; width: 100%; box-sizing: border-box; background: var(--bg-editor); border: 1px solid var(--border-color); color: var(--text-light); padding: 10px; border-radius: 4px; outline: none; font-family: monospace;" autocomplete="off" />
+        </div>
+        <div class="modal-footer" style="margin-top: 15px; display: flex; justify-content: flex-end; gap: 10px;">
+            <button id="btn-dialog-cancel" style="padding: 8px 16px; background: transparent; border: 1px solid var(--border-color); color: var(--text-light); border-radius: 4px; cursor: pointer; font-size: 13px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">Cancelar</button>
+            <button id="btn-dialog-confirm" class="btn-primary">OK</button>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
 <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
@@ -87,7 +153,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
 <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
 
 <script src="./src/main.js" type="module"></script>
+
 </body>
 </html>
