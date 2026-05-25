@@ -10,7 +10,59 @@ import {
 let currentRootPath = "./";
 let currentFilePath = "";
 let debounceTimer;
+// --- SISTEMA DE DIÁLOGOS PROFISSIONAIS ---
+const Dialog = {
+    show: function({ title, message = '', type = 'alert', placeholder = '', defaultValue = '' }) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('custom-dialog');
+            const titleEl = document.getElementById('dialog-title');
+            const msgEl = document.getElementById('dialog-message');
+            const inputEl = document.getElementById('dialog-input');
+            const btnCancel = document.getElementById('btn-dialog-cancel');
+            const btnConfirm = document.getElementById('btn-dialog-confirm');
 
+            titleEl.innerHTML = title;
+
+            if (message) { msgEl.innerText = message; msgEl.style.display = 'block'; }
+            else { msgEl.style.display = 'none'; }
+
+            if (type === 'prompt') {
+                inputEl.style.display = 'block';
+                inputEl.placeholder = placeholder;
+                inputEl.value = defaultValue;
+                setTimeout(() => inputEl.focus(), 100);
+            } else {
+                inputEl.style.display = 'none';
+            }
+
+            btnCancel.style.display = type === 'alert' ? 'none' : 'block';
+            btnConfirm.innerText = type === 'confirm' ? 'Confirmar' : 'OK';
+
+            const cleanup = () => {
+                modal.classList.add('hidden');
+                btnConfirm.onclick = null;
+                btnCancel.onclick = null;
+                inputEl.onkeydown = null;
+            };
+
+            btnCancel.onclick = () => { cleanup(); resolve(null); };
+            btnConfirm.onclick = () => {
+                cleanup();
+                resolve(type === 'prompt' ? inputEl.value : true);
+            };
+
+            inputEl.onkeydown = (e) => {
+                if (e.key === 'Enter') btnConfirm.click();
+                if (e.key === 'Escape') btnCancel.click();
+            };
+
+            modal.classList.remove('hidden');
+        });
+    },
+    alert: (title, message) => Dialog.show({ title, message, type: 'alert' }),
+    confirm: (title, message) => Dialog.show({ title, message, type: 'confirm' }),
+    prompt: (title, placeholder, defaultValue = '') => Dialog.show({ title, type: 'prompt', placeholder, defaultValue })
+};
 const md = window.markdownit({
     html: true, breaks: true, linkify: true,
     highlight: function (str, lang) {
@@ -27,6 +79,82 @@ mermaid.initialize({ startOnLoad: false, theme: 'dark' });
 document.addEventListener('DOMContentLoaded', async () => {
     const fileTree = document.getElementById('file-tree');
     const editor = document.getElementById('markdown-editor');
+    const langSelector = document.getElementById('language-selector');
+    const settingsModal = document.getElementById('settings-modal');
+    const inputGroqKey = document.getElementById('groq-api-key');
+    const statusMsg = document.getElementById('settings-status-msg');
+    const btnSaveSettings = document.getElementById('btn-save-settings');
+
+    const openSettings = () => {
+        inputGroqKey.value = localStorage.getItem('groq_api_key') || '';
+        statusMsg.style.display = 'none';
+        settingsModal.classList.remove('hidden');
+    };
+
+    document.getElementById('btn-settings').onclick = openSettings;
+    document.getElementById('btn-close-settings').onclick = () => settingsModal.classList.add('hidden');
+
+    // Validar Chave na Groq antes de salvar
+    btnSaveSettings.onclick = async () => {
+        const key = inputGroqKey.value.trim();
+        if (!key) {
+            statusMsg.innerText = "A chave não pode estar vazia.";
+            statusMsg.style.color = "#ef4444"; // Vermelho
+            statusMsg.style.display = "block";
+            return;
+        }
+
+        statusMsg.innerText = "⏳ A validar chave na Groq...";
+        statusMsg.style.color = "var(--accent-blue)";
+        statusMsg.style.display = "block";
+        btnSaveSettings.disabled = true;
+
+        try {
+            // Tenta listar os modelos para ver se a chave é válida
+            const res = await fetch('https://api.groq.com/openai/v1/models', {
+                headers: { 'Authorization': `Bearer ${key}` }
+            });
+
+            if (res.ok) {
+                localStorage.setItem('groq_api_key', key);
+                statusMsg.innerText = "✅ Chave validada e guardada com sucesso!";
+                statusMsg.style.color = "#10b981"; // Verde
+                setTimeout(() => settingsModal.classList.add('hidden'), 1500); // Fecha após 1.5s
+            } else {
+                statusMsg.innerText = "❌ Chave inválida. Verifique e tente novamente.";
+                statusMsg.style.color = "#ef4444";
+            }
+        } catch (err) {
+            statusMsg.innerText = "❌ Erro de rede ao tentar validar.";
+            statusMsg.style.color = "#ef4444";
+        } finally {
+            btnSaveSettings.disabled = false;
+        }
+    };
+    let systemLang = navigator.language || navigator.userLanguage;
+    if (!systemLang || systemLang === 'C' || systemLang === 'C.UTF-8') {
+        systemLang = 'pt-BR';
+    }
+
+    // Ajusta o seletor para o idioma detetado
+    // (Pega apenas os primeiros 5 caracteres, ex: "pt-BR")
+    const shortLang = systemLang.substring(0, 5);
+    if (Array.from(langSelector.options).some(opt => opt.value === shortLang)) {
+        langSelector.value = shortLang;
+    }
+
+    // Aplica no editor
+    editor.setAttribute('lang', langSelector.value);
+
+    // --- 2. TROCA MANUAL ---
+    langSelector.onchange = () => {
+        const selectedLang = langSelector.value;
+        editor.setAttribute('lang', selectedLang);
+        console.log("Teclado/Idioma alterado manualmente para:", selectedLang);
+
+        // Foca de volta no editor para o utilizador continuar a escrever
+        editor.focus();
+    }
 
     // ==========================================
     // 2. CONTROLOS DA JANELA (FRAMELESS)
@@ -82,7 +210,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('btn-refresh').onclick = () => loadDirectory(currentRootPath, fileTree);
 
     document.getElementById('btn-new-file').onclick = async () => {
-        const fileName = prompt("Nome do arquivo (ex: nota.md):");
+        const titleIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg> Novo Arquivo`;
+
+        const fileName = await Dialog.prompt(titleIcon, "Nome do arquivo (ex: nota.md)");
+
         if (fileName) {
             const safeName = fileName.endsWith('.md') ? fileName : `${fileName}.md`;
             const fullPath = `${currentRootPath}/${safeName}`;
@@ -90,10 +221,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await CreateFile(fullPath);
                 await loadDirectory(currentRootPath, fileTree);
                 await window.openFile(fullPath);
-            } catch (err) { alert("Erro ao criar: " + err); }
+            } catch (err) { Dialog.alert("❌ Erro", "Erro ao criar ficheiro."); }
         }
     };
-
     // ==========================================
     // 5. GESTÃO DO TERMINAL
     // ==========================================
@@ -109,19 +239,33 @@ document.addEventListener('DOMContentLoaded', async () => {
                     theme: { background: '#000000', foreground: '#e2e8f0', cursor: '#3b82f6' },
                     fontFamily: 'monospace', fontSize: 13, cursorBlink: true
                 });
+
+                // NOVO: Aplica o redimensionamento inteligente
+                const fitAddon = new FitAddon.FitAddon();
+                term.loadAddon(fitAddon);
+
                 document.getElementById('terminal-container').innerHTML = '';
                 term.open(document.getElementById('terminal-container'));
 
+                // Força o terminal a ganhar o tamanho exato da Div no Windows
+                fitAddon.fit();
+                window.addEventListener('resize', () => fitAddon.fit());
+
                 try {
                     await StartTerminal();
-                    window.runtime.EventsOn("terminal:output", (data) => term.write(data.replace(/\n/g, '\r\n')));
+                    window.runtime.EventsOn("terminal:output", (data) => {
+                        // NOVO: Normaliza a quebra de linha do Windows para não empurrar o texto de forma errada
+                        const normalizedData = data.replace(/\r\n/g, '\n').replace(/\n/g, '\r\n');
+                        term.write(normalizedData);
+                    });
                 } catch (e) { term.writeln(`\r\n\x1b[1;31mErro:\x1b[0m ${e}`); }
 
                 let currentInput = '';
                 term.onKey(async ({ key, domEvent }) => {
                     if (domEvent.keyCode === 13) {
                         term.write('\r\n');
-                        await WriteTerminal(currentInput + "\n");
+                        // NOVO: Manda \r\n para o Windows executar o comando sem falhar
+                        await WriteTerminal(currentInput + "\r\n");
                         currentInput = '';
                     } else if (domEvent.keyCode === 8) {
                         if (currentInput.length > 0) {
@@ -242,18 +386,89 @@ document.addEventListener('DOMContentLoaded', async () => {
     function closeSlashMenu() { slashMenuOpen = false; slashMenu.classList.remove('active'); }
     function updateSlashSelection() { slashItems.forEach(item => item.classList.remove('selected')); slashItems[selectedIndex].classList.add('selected'); }
 
-    function executeSlashCommand(action) {
+    async function executeSlashCommand(action) {
         const cursorPos = editor.selectionStart;
-        const textBefore = editor.value.substring(0, cursorPos - 1);
+        const textBefore = editor.value.substring(0, cursorPos - 1); // remove o "/"
         const textAfter = editor.value.substring(editor.selectionEnd);
-        let insertText = action === 'table' ? "| Cabeçalho 1 | Cabeçalho 2 |\n| ----------- | ----------- |\n| Valor       | Valor       |\n" :
-            action === 'code' ? "```javascript\n// O seu código aqui\n```\n" :
-                "```mermaid\ngraph TD;\n    A[Início] --> B[Fim];\n```\n";
+        let insertText = "";
+
+        if (action === 'image') {
+            document.getElementById('image-upload').click();
+            closeSlashMenu();
+            return; // Interrompe para esperar o upload
+        }
+
+        if (action === 'ai') {
+            closeSlashMenu();
+
+            let apiKey = localStorage.getItem('groq_api_key');
+
+            // Se não houver chave guardada, em vez do prompt feio, abre a nossa nova janela!
+            if (!apiKey) {
+                openSettings();
+                return;
+            }
+
+            const aiIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg> Gerar com IA`;
+
+            const promptText = await Dialog.prompt(aiIcon, "O que deseja que a IA gere em Markdown?");
+            if (!promptText) return;
+
+            editor.value = textBefore + "⏳ *A gerar estrutura em milissegundos...*\n" + textAfter;
+            updatePreview();
+
+            try {
+                // Chamada direta aos servidores da Groq (Sem intermediários congestionados)
+                const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: "llama-3.1-8b-instant",
+                        messages: [
+                            {
+                                "role": "system",
+                                "content": "És um assistente focado em produtividade. Responde sempre formatação Markdown pura, limpa e estruturada."
+                            },
+                            {
+                                "role": "user",
+                                "content": prompt
+                            }
+                        ]
+                    })
+                });
+
+                if (response.status === 401) {
+                    localStorage.removeItem('groq_api_key');
+                    throw new Error("A API Key da Groq é inválida. Clique no atalho para inserir uma nova.");
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`Groq recusou (Status ${response.status}): ${errorData.error?.message}`);
+                }
+
+                const data = await response.json();
+                insertText = data.choices[0].message.content + "\n\n";
+
+            } catch (e) {
+                insertText = `> ❌ *Erro:* ${e.message}\n`;
+            }
+
+            // Limpa a mensagem de "A gerar..." e insere o texto final
+            editor.value = textBefore + insertText + textAfter;
+            editor.selectionStart = editor.selectionEnd = textBefore.length + insertText.length;
+            updatePreview();
+        }
+        else if (action === 'table') insertText = "| Cab 1 | Cab 2 |\n| --- | --- |\n| Val | Val |\n";
+        else if (action === 'code') insertText = "```javascript\n\n```\n";
+        else if (action === 'mermaid') insertText = "```mermaid\ngraph TD;\n    A --> B;\n```\n";
 
         editor.value = textBefore + insertText + textAfter;
-        editor.selectionStart = editor.selectionEnd = textBefore.length + insertText.length;
-        closeSlashMenu();
         updatePreview();
+        if (action !== 'ai') closeSlashMenu();
     }
 
     // Carrega a diretoria inicial
@@ -288,14 +503,18 @@ async function handleSave() {
 }
 
 window.deleteItem = async (path) => {
-    if (confirm("Tem certeza que deseja deletar?")) {
+    const titleIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> Apagar Item`;
+
+    const confirmed = await Dialog.confirm(titleIcon, "Tem a certeza que deseja eliminar permanentemente este item? Esta ação não pode ser desfeita.");
+    if (confirmed) {
         await DeleteNode(path);
         await loadDirectory(currentRootPath, document.getElementById('file-tree'));
     }
 };
-
 window.renameItem = async (path, oldName) => {
-    const newName = prompt("Novo nome:", oldName);
+    const titleIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg> Renomear Ficheiro`;
+
+    const newName = await Dialog.prompt(titleIcon, "Novo nome:", oldName);
     if (newName && newName !== oldName) {
         await RenameNode(path, path.replace(oldName, newName));
         await loadDirectory(currentRootPath, document.getElementById('file-tree'));
@@ -322,15 +541,22 @@ function renderNodes(nodes, container) {
     const fileIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #64748b"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`;
 
     nodes.forEach(node => {
+        // MÁGICA WINDOWS: Transforma "C:\pasta\nota.md" em "C:\\pasta\\nota.md" para o JS não bugar
+        const safePath = node.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const safeName = node.name.replace(/'/g, "\\'");
+
+        const editIcon = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>`;
+        const trashIcon = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+
         const li = document.createElement('li');
         li.innerHTML = `
             <div class="file-item">
-                <div class="file-info" onclick="window.handleItemClick('${node.path}', ${node.isDir}, this)">
+                <div class="file-info" onclick="window.handleItemClick('${safePath}', ${node.isDir}, this)">
                     ${node.isDir ? folderIcon : fileIcon} <span style="margin-top: 1px;">${node.name}</span>
                 </div>
                 <div class="file-actions">
-                    <button class="action-btn btn-rename" onclick="event.stopPropagation(); window.renameItem('${node.path}', '${node.name}')">✏️</button>
-                    <button class="action-btn btn-delete" onclick="event.stopPropagation(); window.deleteItem('${node.path}')">✕</button>
+                    <button class="action-btn btn-rename" onclick="event.stopPropagation(); window.renameItem('${safePath}', '${safeName}')" title="Renomear">${editIcon}</button>
+                    <button class="action-btn btn-delete" onclick="event.stopPropagation(); window.deleteItem('${safePath}')" title="Apagar">${trashIcon}</button>
                 </div>
             </div>
             <ul class="sub-dir" style="display: none; padding-left: 15px;"></ul>
@@ -353,7 +579,8 @@ function updatePreview() {
             const originalSrc = img.getAttribute('src');
             if (originalSrc && !originalSrc.startsWith('http') && !originalSrc.startsWith('data:')) {
                 try {
-                    const base64Data = await ReadImageBase64(originalSrc);
+                    const decodedPath = decodeURIComponent(originalSrc).replace('file:///', '');
+                    const base64Data = await ReadImageBase64(decodedPath);
                     const ext = originalSrc.split('.').pop().toLowerCase();
                     const mimeType = (ext === 'jpg' || ext === 'jpeg') ? 'image/jpeg' : (ext === 'svg') ? 'image/svg+xml' : (ext === 'gif') ? 'image/gif' : 'image/png';
                     img.src = `data:${mimeType};base64,${base64Data}`;

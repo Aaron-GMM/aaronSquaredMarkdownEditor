@@ -2,10 +2,12 @@
     --bg-darker: #020617;       /* Titlebar */
     --bg-main: #0f172a;         /* Fundo Editor */
     --bg-sidebar: #1e293b;      /* Sidebar */
+    --bg-editor: #0f172a;       /* Fundo de caixas de texto/inputs (Adicionado) */
     --border-color: #334155;    /* Bordas sutis */
     --accent-blue: #3b82f6;     /* Azul de destaque */
-    --text-primary: #f8fafc;
-    --text-muted: #94a3b8;
+    --text-primary: #f8fafc;    /* Texto normal */
+    --text-muted: #94a3b8;      /* Texto secundário/apagado */
+    --text-light: #ffffff;      /* Texto puro brilhante (Adicionado) */
     --font-mono: 'Consolas', 'Courier New', monospace;
 }
 
@@ -226,6 +228,18 @@ textarea {
 .file-item:hover .file-actions {
     display: flex;
 }
+.file-item {
+    transition: background 0.1s ease-in-out;
+    user-select: none;
+}
+.file-item:active {
+    background-color: rgba(59, 130, 246, 0.2); /* Azul suave ao clicar */
+    transform: scale(0.99);
+}
+.sub-dir {
+    border-left: 1px solid var(--border-color); /* Linha guia para pastas filhas */
+    margin-left: 10px;
+}
 
 .action-btn {
     background: transparent;
@@ -363,7 +377,14 @@ textarea {
     color: white;
 }
 
-.pdf-export-mode { background-color: #ffffff !important; }
+.pdf-export-mode {
+    background-color: #ffffff !important;
+    height: max-content !important; /* NOVO: Força altura total */
+    overflow: visible !important;   /* NOVO: Remove barras de rolagem */
+    position: absolute;             /* NOVO: Remove restrições de flexbox */
+    top: 0; left: 0; width: 800px;
+}
+
 .pdf-export-mode, .pdf-export-mode * { color: #000000 !important; }
 .pdf-export-mode img { max-width: 80% !important; display: block !important; margin: 15px auto !important; border: 1px solid #e2e8f0; }
 .pdf-export-mode pre, .pdf-export-mode code, .pdf-export-mode pre *, .pdf-export-mode code * {
@@ -371,4 +392,71 @@ textarea {
     color: #0f172a !important;
     text-shadow: none !important;
     border-color: #cbd5e1 !important;
+}
+
+.lang-select {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 10px;
+    padding: 2px 4px;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.lang-select:hover {
+    border-color: var(--accent-blue);
+    color: white;
+}
+
+.lang-select option {
+    background-color: var(--bg-sidebar);
+    color: white;
+}
+
+/* ==========================================
+   MODAL DE CONFIGURAÇÕES
+   ========================================== */
+.modal {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999;
+    backdrop-filter: blur(2px);
+}
+.modal.hidden { display: none; }
+
+.modal-content {
+    background: var(--bg-sidebar); border: 1px solid var(--border-color);
+    border-radius: 8px; width: 400px; padding: 20px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    display: flex; flex-direction: column; gap: 15px;
+}
+.modal-header { display: flex; justify-content: space-between; align-items: center; }
+.modal-header h3 { margin: 0; font-size: 16px; color: var(--text-light); }
+.modal-body { display: flex; flex-direction: column; gap: 8px; }
+.modal-body label { font-size: 13px; color: var(--text-muted); }
+.modal-body input {
+    background: var(--bg-editor); border: 1px solid var(--border-color);
+    color: var(--text-light); padding: 10px; border-radius: 4px; outline: none;
+    font-family: monospace;
+}
+.modal-body input:focus { border-color: var(--accent-blue); }
+.btn-primary {
+    background: var(--accent-blue); color: white; border: none;
+    padding: 8px 16px; border-radius: 4px; cursor: pointer; transition: background 0.2s;
+    font-size: 13px;
+}
+.btn-primary:hover { background: #2563eb; }
+.btn-primary:disabled { background: #475569; cursor: not-allowed; }
+
+.modal-content {
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border-color);
+    border-radius: 8px; width: 400px; padding: 20px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    display: flex; flex-direction: column; gap: 15px;
+    opacity: 1; /* Garante que a caixa em si é 100% opaca */
 }
