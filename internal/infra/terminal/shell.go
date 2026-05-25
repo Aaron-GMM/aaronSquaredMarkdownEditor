@@ -22,8 +22,9 @@ func NewShellSession(ctx context.Context) (*ShellSession, error) {
 	var cmd *exec.Cmd
 
 	if runtime.GOOS == "windows" {
+		// -WindowStyle Hidden esconde a janela nativa do Windows sem causar erros de compilação no Linux
 		// -NoExit impede que o PowerShell morra imediatamente
-		cmd = exec.Command("powershell.exe", "-NoProfile", "-NoExit")
+		cmd = exec.Command("powershell.exe", "-WindowStyle", "Hidden", "-NoLogo", "-NoExit")
 	} else {
 		// -i força o bash a entrar no modo Interativo, evitando que feche sozinho
 		cmd = exec.Command("bash", "-i")
