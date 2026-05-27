@@ -403,7 +403,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             let apiKey = localStorage.getItem('groq_api_key');
 
-            // Se não houver chave guardada, em vez do prompt feio, abre a nossa nova janela!
             if (!apiKey) {
                 openSettings();
                 return;
@@ -418,57 +417,30 @@ document.addEventListener('DOMContentLoaded', async () => {
             updatePreview();
 
             try {
-                // Chamada direta aos servidores da Groq (Sem intermediários congestionados)
-                const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`
-                    },
-                    body: JSON.stringify({
-                        model: "llama-3.1-8b-instant",
-                        messages: [
-                            {
-                                "role": "system",
-                                "content": "És um assistente focado em produtividade. Responde sempre formatação Markdown pura, limpa e estruturada."
-                            },
-                            {
-                                "role": "user",
-                                "content": prompt
-                            }
-                        ]
-                    })
-                });
-
-                if (response.status === 401) {
-                    localStorage.removeItem('groq_api_key');
-                    throw new Error("A API Key da Groq é inválida. Clique no atalho para inserir uma nova.");
-                }
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(`Groq recusou (Status ${response.status}): ${errorData.error?.message}`);
-                }
-
-                const data = await response.json();
-                insertText = data.choices[0].message.content + "\n\n";
-
+                // A magia acontece aqui: o Go faz a chamada pesada!
+                const responseText = await window.go.app.App.GenerateAIContent(apiKey, promptText);
+                insertText = responseText + "\n\n";
             } catch (e) {
-                insertText = `> ❌ *Erro:* ${e.message}\n`;
+                insertText = `> ❌ *Erro da IA:* ${e}\n`;
             }
 
-            // Limpa a mensagem de "A gerar..." e insere o texto final
+            // Atualiza o editor com a resposta da IA
             editor.value = textBefore + insertText + textAfter;
             editor.selectionStart = editor.selectionEnd = textBefore.length + insertText.length;
             updatePreview();
+
+            return; // CÍRTICO: Impede que o código continue e execute a lógica genérica abaixo
         }
+
+        // --- Lógica para inserções estáticas (Tabelas, Código, Diagramas) ---
         else if (action === 'table') insertText = "| Cab 1 | Cab 2 |\n| --- | --- |\n| Val | Val |\n";
         else if (action === 'code') insertText = "```javascript\n\n```\n";
         else if (action === 'mermaid') insertText = "```mermaid\ngraph TD;\n    A --> B;\n```\n";
 
+        // Aplica a inserção estática no editor
         editor.value = textBefore + insertText + textAfter;
         updatePreview();
-        if (action !== 'ai') closeSlashMenu();
+        closeSlashMenu();
     }
 
     // Carrega a diretoria inicial

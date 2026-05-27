@@ -6,19 +6,23 @@ import (
 
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/domain"
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/infra/filesystem"
+	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/infra/ia"
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/infra/terminal"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct
 type App struct {
-	ctx   context.Context
-	shell *terminal.ShellSession // Mantém o terminal vivo na memória
+	ctx        context.Context
+	shell      *terminal.ShellSession // Mantém o terminal vivo na memória
+	aiProvider domain.AIProvider      // NOVO
 }
 
 // NewApp cria uma nova instância da aplicação
 func NewApp() *App {
-	return &App{}
+	return &App{
+		aiProvider: IA.NewGroqClient(), // NOVO: Injeta a Groq silenciosamente
+	}
 }
 
 func (a *App) Startup(ctx context.Context) {
@@ -103,4 +107,8 @@ func (a *App) StopTerminal() error {
 		return a.shell.Close()
 	}
 	return nil
+}
+
+func (a *App) GenerateAIContent(apiKey string, prompt string) (string, error) {
+	return a.aiProvider.GenerateMarkdown(a.ctx, apiKey, prompt)
 }
