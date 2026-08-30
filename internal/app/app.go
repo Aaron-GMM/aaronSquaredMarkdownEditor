@@ -194,3 +194,7 @@ func (a *App) SetGroqAPIKey(key string) error {
 func (a *App) SearchVault(query string) ([]domain.FileNode, error) {
 	return a.indexer.Search(query)
 }
+
+func (a *App) GetBacklinks(targetFilePath string) ([]domain.FileNode, error) {
+	return a.indexer.GetBacklinks(targetFilePath)
+}
