@@ -1,15 +1,36 @@
 import {
-    GetDirectory, OpenNote, SaveNote, CreateFile, DeleteNode, RenameNode,
-    StartTerminal, WriteTerminal, SaveImage, ReadImageBase64, StopTerminal,
-    SelectFolder
+    GetDirectory, OpenNote, SaveNote, CreateFileInWorkspace, CreateFolderInWorkspace, 
+    DeleteNode, RenameNode, StartTerminal, WriteTerminal, SaveImage, ReadImageBase64, 
+    StopTerminal, SelectFolder, OpenWorkspace, RefreshWorkspace, GenerateAIContent, SearchVault, ImportImage,
+    GetGroqAPIKey, SetGroqAPIKey
 } from './services/wailsjs/go/app/App.js';
 
 // ==========================================
 // 1. ESTADO GLOBAL E CONFIGURAÇÕES
 // ==========================================
-let currentRootPath = "./";
-let currentFilePath = "";
 let debounceTimer;
+
+async function loadDirectory(path, container) {
+    try {
+        const treeData = await GetDirectory(path);
+        if (treeData && treeData.children) {
+            renderNodes(treeData.children, container, 1);
+        }
+    } catch (e) {
+        console.error("Erro ao carregar sub-diretório:", e);
+    }
+}
+window.loadDirectory = loadDirectory;
+
+window.openFile = async (path) => {
+    try {
+        const note = await OpenNote(path);
+        document.getElementById('markdown-editor').value = note.content || note.Content;
+        updatePreview();
+    } catch (e) {
+        console.error("Erro ao abrir arquivo:", e);
+    }
+};
 // --- SISTEMA DE DIÁLOGOS PROFISSIONAIS ---
 const Dialog = {
     show: function({ title, message = '', type = 'alert', placeholder = '', defaultValue = '' }) {
@@ -85,8 +106,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const statusMsg = document.getElementById('settings-status-msg');
     const btnSaveSettings = document.getElementById('btn-save-settings');
 
-    const openSettings = () => {
-        inputGroqKey.value = localStorage.getItem('groq_api_key') || '';
+    const openSettings = async () => {
+        inputGroqKey.value = await GetGroqAPIKey() || '';
         statusMsg.style.display = 'none';
         settingsModal.classList.remove('hidden');
     };
@@ -112,12 +133,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             // Tenta listar os modelos para ver se a chave é válida
             const res = await fetch('https://api.groq.com/openai/v1/models', {
-                headers: { 'Authorization': `Bearer ${key}` }
+                method: 'GET',
+                headers: { 'Authorization': 'Bearer ' + key }
             });
 
             if (res.ok) {
-                localStorage.setItem('groq_api_key', key);
-                statusMsg.innerText = "✅ Chave validada e guardada com sucesso!";
+                await SetGroqAPIKey(key);
+                statusMsg.innerText = "✅ Chave válida e gravada no Backend Go!";
                 statusMsg.style.color = "#10b981"; // Verde
                 setTimeout(() => settingsModal.classList.add('hidden'), 1500); // Fecha após 1.5s
             } else {
@@ -193,35 +215,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ==========================================
     // 4. EXPLORADOR DE FICHEIROS E PASTAS
     // ==========================================
-    // Abrir pasta externa (Nova Feature!)
+    // Abrir pasta externa
     document.getElementById('btn-open-folder').onclick = async () => {
         try {
-            const folder = await SelectFolder();
-            if (folder) {
-                currentRootPath = folder;
-                currentFilePath = ""; // Reseta o ficheiro atual
+            const tree = await OpenWorkspace();
+            if (tree) {
                 editor.value = "";
                 updatePreview();
-                await loadDirectory(currentRootPath, fileTree);
+                renderNodes(tree.children || [], fileTree, 0);
             }
         } catch (err) { alert("Erro ao selecionar pasta: " + err); }
     };
 
-    document.getElementById('btn-refresh').onclick = () => loadDirectory(currentRootPath, fileTree);
+    document.getElementById('btn-refresh').onclick = async () => {
+        try {
+            const tree = await RefreshWorkspace();
+            if (tree) renderNodes(tree.children || [], fileTree, 0);
+        } catch(err) {}
+    };
 
     document.getElementById('btn-new-file').onclick = async () => {
-        const titleIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg> Novo Arquivo`;
-
+        const titleIcon = `<i class="ph ph-file-plus"></i> Novo Arquivo`;
         const fileName = await Dialog.prompt(titleIcon, "Nome do arquivo (ex: nota.md)");
-
         if (fileName) {
             const safeName = fileName.endsWith('.md') ? fileName : `${fileName}.md`;
-            const fullPath = `${currentRootPath}/${safeName}`;
             try {
-                await CreateFile(fullPath);
-                await loadDirectory(currentRootPath, fileTree);
-                await window.openFile(fullPath);
-            } catch (err) { Dialog.alert("❌ Erro", "Erro ao criar ficheiro."); }
+                const updatedTree = await CreateFileInWorkspace(safeName);
+                if (updatedTree) renderNodes(updatedTree.children || [], fileTree, 0);
+            } catch (err) { Dialog.alert("❌ Erro", "Abra uma pasta de projeto primeiro."); }
         }
     };
     // ==========================================
@@ -305,30 +326,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     const btnInsertImage = document.getElementById('btn-insert-image');
-    const imageUpload = document.getElementById('image-upload');
-    btnInsertImage.onclick = () => imageUpload.click();
-
-    imageUpload.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            const base64Str = event.target.result.split(',')[1];
-            const ext = file.name.split('.').pop() || 'png';
-            const fileName = `img_${Date.now()}.${ext}`;
-            const filePath = `${currentRootPath}/${fileName}`;
-            try {
-                await SaveImage(filePath, base64Str);
+    btnInsertImage.onclick = async () => {
+        try {
+            const finalPath = await window.go.app.App.ImportImage();
+            if (finalPath) {
                 const cursorPos = editor.selectionStart;
                 const textBefore = editor.value.substring(0, cursorPos);
                 const textAfter = editor.value.substring(editor.selectionEnd);
-                editor.value = textBefore + `\n![${file.name}](${filePath})\n` + textAfter;
+                const fileName = finalPath.split(/[/\\]/).pop();
+                editor.value = textBefore + `\n![${fileName}](${finalPath})\n` + textAfter;
                 updatePreview();
-                await loadDirectory(currentRootPath, fileTree);
-            } catch (err) { alert("Erro ao guardar a imagem: " + err); }
-            imageUpload.value = '';
-        };
-        reader.readAsDataURL(file);
+                const tree = await RefreshWorkspace();
+                if (tree) renderNodes(tree.children || [], fileTree, 0);
+            }
+        } catch (err) {
+            if (err !== "dialog cancelled") {
+                alert("Erro ao importar a imagem: " + err);
+            }
+        }
     };
 
     document.getElementById('btn-export-pdf').onclick = async () => {
@@ -344,11 +359,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         await new Promise(resolve => setTimeout(resolve, 150));
 
         try {
-            const dataUri = await html2pdf().set(opt).from(element).outputPdf('datauristring');
-            const base64Data = dataUri.split(',')[1];
-            const filePath = `${currentRootPath}/aaron_export_${Date.now()}.pdf`;
-            await SaveImage(filePath, base64Data);
-            await loadDirectory(currentRootPath, fileTree);
+            const pdfBase64 = await html2pdf().set(opt).from(element).outputPdf('datauristring');
+            const b64Data = pdfBase64.split(',')[1];
+            const pdfName = `aaron_export_${Date.now()}.pdf`;
+            const filePath = await SaveImage(pdfName, b64Data);
+            const tree = await RefreshWorkspace();
+            if (tree) renderNodes(tree.children || [], fileTree, 0);
             alert(`✅ Sucesso! PDF guardado: ${filePath}`);
         } catch (err) { alert("Erro ao gerar o PDF: " + err); }
         finally { element.classList.remove('pdf-export-mode'); }
@@ -365,6 +381,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     editor.addEventListener('input', () => {
         const cursorPos = editor.selectionStart;
         const match = editor.value.substring(0, cursorPos).match(/(?:^|\n)\/$/);
+
         if (match) openSlashMenu();
         else if (slashMenuOpen) closeSlashMenu();
     });
@@ -393,15 +410,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         let insertText = "";
 
         if (action === 'image') {
-            document.getElementById('image-upload').click();
+            document.getElementById('btn-insert-image').click();
             closeSlashMenu();
-            return; // Interrompe para esperar o upload
+            return;
         }
 
         if (action === 'ai') {
             closeSlashMenu();
 
-            let apiKey = localStorage.getItem('groq_api_key');
+            let apiKey = await GetGroqAPIKey();
 
             if (!apiKey) {
                 openSettings();
@@ -417,8 +434,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             updatePreview();
 
             try {
-                // A magia acontece aqui: o Go faz a chamada pesada!
-                const responseText = await window.go.app.App.GenerateAIContent(apiKey, promptText);
+                const responseText = await GenerateAIContent(promptText);
                 insertText = responseText + "\n\n";
             } catch (e) {
                 insertText = `> ❌ *Erro da IA:* ${e}\n`;
@@ -450,46 +466,76 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ==========================================
 // 8. FUNÇÕES GLOBAIS DE RENDERIZAÇÃO
 // ==========================================
-async function loadDirectory(path, container) {
-    try {
-        const dirNode = await GetDirectory(path);
-        renderNodes(dirNode.children, container);
-    } catch (error) { console.error(error); }
+// Função auxiliar para renderizar a árvore que vem do Go
+async function carregarArvoreNoUI(treeData) {
+    const fileTree = document.getElementById('file-tree');
+    if (!treeData || !treeData.children) {
+        fileTree.innerHTML = '';
+        return;
+    }
+    renderNodes(treeData.children, fileTree);
 }
+document.getElementById('btn-new-file').onclick = async () => {
+    const titleIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg> Novo Arquivo`;
+    const fileName = await Dialog.prompt(titleIcon, "Nome do arquivo (ex: nota.md)");
 
-window.openFile = async (path) => {
-    try {
-        const note = await OpenNote(path);
-        currentFilePath = path;
-        document.getElementById('markdown-editor').value = note.content;
-        updatePreview();
-    } catch (error) { console.error(error); }
+    if (fileName) {
+        const safeName = fileName.endsWith('.md') ? fileName : `${fileName}.md`;
+        try {
+            // O Go faz tudo e já nos devolve a lista atualizada!
+            const updatedTree = await window.go.app.App.CreateFileInWorkspace(safeName);
+            await carregarArvoreNoUI(updatedTree);
+        } catch (err) { Dialog.alert("❌ Erro", "Abra uma pasta de projeto primeiro."); }
+    }
+};
+
+document.getElementById('btn-new-file').onclick = async () => {
+    const titleIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg> Novo Arquivo`;
+    const fileName = await Dialog.prompt(titleIcon, "Nome do arquivo (ex: nota.md)");
+
+    if (fileName) {
+        const safeName = fileName.endsWith('.md') ? fileName : `${fileName}.md`;
+        try {
+            // O Go faz tudo e já nos devolve a lista atualizada!
+            const updatedTree = await window.go.app.App.CreateFileInWorkspace(safeName);
+            await carregarArvoreNoUI(updatedTree);
+        } catch (err) { Dialog.alert("❌ Erro", "Abra uma pasta de projeto primeiro."); }
+    }
+};
+document.getElementById('btn-new-folder').onclick = async () => {
+    const titleIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg> Nova Pasta`;
+    const folderName = await Dialog.prompt(titleIcon, "Nome da nova pasta:");
+
+    if (folderName) {
+        try {
+            const updatedTree = await CreateFolderInWorkspace(folderName);
+            await carregarArvoreNoUI(updatedTree);
+        } catch (err) { Dialog.alert("❌ Erro", "Abra uma pasta de projeto primeiro."); }
+    }
 };
 
 async function handleSave() {
-    if (!currentFilePath) { alert("Nenhum arquivo aberto para salvar!"); return; }
     try {
-        await SaveNote(currentFilePath, document.getElementById('markdown-editor').value);
+        await SaveNote(document.getElementById('markdown-editor').value);
         alert("✅ Arquivo salvo com sucesso!");
     } catch (err) { alert(err); }
 }
 
 window.deleteItem = async (path) => {
     const titleIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> Apagar Item`;
-
-    const confirmed = await Dialog.confirm(titleIcon, "Tem a certeza que deseja eliminar permanentemente este item? Esta ação não pode ser desfeita.");
+    const confirmed = await Dialog.confirm(titleIcon, "Tem a certeza? Esta ação não pode ser desfeita.");
     if (confirmed) {
-        await DeleteNode(path);
-        await loadDirectory(currentRootPath, document.getElementById('file-tree'));
+        const updatedTree = await DeleteNode(path);
+        await carregarArvoreNoUI(updatedTree);
     }
 };
+
 window.renameItem = async (path, oldName) => {
     const titleIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg> Renomear Ficheiro`;
-
     const newName = await Dialog.prompt(titleIcon, "Novo nome:", oldName);
     if (newName && newName !== oldName) {
-        await RenameNode(path, path.replace(oldName, newName));
-        await loadDirectory(currentRootPath, document.getElementById('file-tree'));
+        const updatedTree = await RenameNode(path, newName);
+        await carregarArvoreNoUI(updatedTree);
     }
 };
 
@@ -504,35 +550,60 @@ window.handleItemClick = async (path, isDir, element) => {
     } else { await window.openFile(path); }
 };
 
-function renderNodes(nodes, container) {
+function renderNodes(nodes, container, depth = 0) {
     container.innerHTML = '';
     if (!nodes) return;
     nodes.sort((a, b) => (a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1));
 
-    const folderIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #94a3b8"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
-    const fileIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #64748b"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`;
+    const folderIcon = `<i class="ph-fill ph-folder text-text-muted"></i>`;
+    const folderOpenIcon = `<i class="ph-fill ph-folder-open text-text-muted"></i>`;
+    const fileIcon = `<i class="ph ph-file-text text-text-muted text-lg"></i>`;
 
     nodes.forEach(node => {
-        // MÁGICA WINDOWS: Transforma "C:\pasta\nota.md" em "C:\\pasta\\nota.md" para o JS não bugar
         const safePath = node.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         const safeName = node.name.replace(/'/g, "\\'");
 
-        const editIcon = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>`;
-        const trashIcon = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+        const editIcon = `<i class="ph ph-pencil-simple text-text-muted hover:text-white"></i>`;
+        const trashIcon = `<i class="ph ph-trash text-text-muted hover:text-red-500"></i>`;
 
         const li = document.createElement('li');
-        li.innerHTML = `
-            <div class="file-item">
-                <div class="file-info" onclick="window.handleItemClick('${safePath}', ${node.isDir}, this)">
-                    ${node.isDir ? folderIcon : fileIcon} <span style="margin-top: 1px;">${node.name}</span>
+        
+        let paddingLeft = depth === 0 ? "px-4" : "pl-" + (4 + depth*2);
+        if (depth > 0) paddingLeft = "pl-" + (4 + depth*2); // Custom padding logic if needed, actually we can just use tailwind pl- classes or style.
+        
+        let indentStyle = `padding-left: ${16 + depth * 15}px;`;
+
+        if(node.isDir) {
+             li.innerHTML = `
+                <div class="nav-item ${paddingLeft} py-1.5 flex items-center justify-between cursor-pointer text-text-secondary group" style="${indentStyle}" onclick="window.handleItemClick('${safePath}', true, this)">
+                    <div class="flex items-center gap-1.5 flex-1 overflow-hidden">
+                        <i class="ph ph-caret-right text-xs text-text-muted w-3 dir-caret"></i>
+                        ${folderIcon}
+                        <span class="truncate text-sm group-hover:text-text-primary transition-colors">${node.name}</span>
+                    </div>
+                    <div class="file-actions opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
+                        <button class="p-1" onclick="event.stopPropagation(); window.renameItem('${safePath}', '${safeName}')" title="Renomear">${editIcon}</button>
+                        <button class="p-1" onclick="event.stopPropagation(); window.deleteItem('${safePath}')" title="Apagar">${trashIcon}</button>
+                    </div>
                 </div>
-                <div class="file-actions">
-                    <button class="action-btn btn-rename" onclick="event.stopPropagation(); window.renameItem('${safePath}', '${safeName}')" title="Renomear">${editIcon}</button>
-                    <button class="action-btn btn-delete" onclick="event.stopPropagation(); window.deleteItem('${safePath}')" title="Apagar">${trashIcon}</button>
+                <ul class="sub-dir" style="display: none;"></ul>
+            `;
+        } else {
+             li.innerHTML = `
+                <div class="nav-item ${paddingLeft} py-1.5 flex items-center justify-between cursor-pointer border-l-2 border-transparent text-text-secondary group" style="${indentStyle}" onclick="window.handleItemClick('${safePath}', false, this)">
+                    <div class="flex items-center gap-2 flex-1 overflow-hidden">
+                        <span class="w-3"></span> <!-- Espaçamento pra alinhar com caret de pasta -->
+                        ${fileIcon}
+                        <span class="truncate text-sm group-hover:text-text-primary transition-colors">${node.name}</span>
+                    </div>
+                    <div class="file-actions opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
+                        <button class="p-1" onclick="event.stopPropagation(); window.renameItem('${safePath}', '${safeName}')" title="Renomear">${editIcon}</button>
+                        <button class="p-1" onclick="event.stopPropagation(); window.deleteItem('${safePath}')" title="Apagar">${trashIcon}</button>
+                    </div>
                 </div>
-            </div>
-            <ul class="sub-dir" style="display: none; padding-left: 15px;"></ul>
-        `;
+            `;
+        }
+        
         container.appendChild(li);
     });
 }
@@ -561,3 +632,84 @@ function updatePreview() {
         });
     }, 50);
 }
+    // ==========================================
+    // 8. COMMAND PALETTE (Ctrl+K)
+    // ==========================================
+    const cmdBackdrop = document.getElementById('cmd-palette-backdrop');
+    const cmdModal = document.getElementById('cmd-palette-modal');
+    const cmdInput = document.getElementById('cmd-input');
+    const cmdResults = document.getElementById('cmd-results');
+    let searchDebounce;
+
+    function toggleCmdPalette(show) {
+        if (show) {
+            cmdBackdrop.classList.remove('hidden');
+            setTimeout(() => {
+                cmdBackdrop.classList.remove('opacity-0');
+                cmdModal.classList.remove('scale-95');
+                cmdInput.focus();
+            }, 10);
+        } else {
+            cmdBackdrop.classList.add('opacity-0');
+            cmdModal.classList.add('scale-95');
+            setTimeout(() => cmdBackdrop.classList.add('hidden'), 200);
+            cmdInput.value = "";
+            cmdResults.innerHTML = '<div class="p-4 text-center text-text-muted text-sm" id="cmd-placeholder">Escreva para buscar...</div>';
+        }
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            toggleCmdPalette(true);
+        }
+        if (e.key === 'Escape' && !cmdBackdrop.classList.contains('hidden')) {
+            toggleCmdPalette(false);
+        }
+    });
+
+    cmdBackdrop.addEventListener('click', (e) => {
+        if (e.target === cmdBackdrop) toggleCmdPalette(false);
+    });
+
+    cmdInput.addEventListener('input', () => {
+        const query = cmdInput.value.trim();
+        clearTimeout(searchDebounce);
+
+        if (query.length < 2) {
+            cmdResults.innerHTML = '<div class="p-4 text-center text-text-muted text-sm">Escreva para buscar...</div>';
+            return;
+        }
+
+        cmdResults.innerHTML = '<div class="p-4 text-center text-text-muted text-sm">Buscando...</div>';
+
+        searchDebounce = setTimeout(async () => {
+            try {
+                const results = await SearchVault(query);
+                if (!results || results.length === 0) {
+                    cmdResults.innerHTML = '<div class="p-4 text-center text-text-muted text-sm">Nenhum resultado encontrado.</div>';
+                    return;
+                }
+
+                cmdResults.innerHTML = '';
+                results.forEach(node => {
+                    const item = document.createElement('div');
+                    item.className = "px-4 py-2 hover:bg-surface-100 cursor-pointer flex items-center gap-3 text-text-secondary hover:text-text-primary transition-colors";
+                    item.innerHTML = `
+                        <i class="ph ph-file-text text-xl"></i>
+                        <div class="flex flex-col">
+                            <span class="text-sm font-medium">${node.name}</span>
+                            <span class="text-xs text-text-muted opacity-70">${node.path}</span>
+                        </div>
+                    `;
+                    item.onclick = async () => {
+                        toggleCmdPalette(false);
+                        await window.openFile(node.path);
+                    };
+                    cmdResults.appendChild(item);
+                });
+            } catch (err) {
+                cmdResults.innerHTML = `<div class="p-4 text-center text-red-500 text-sm">Erro: ${err}</div>`;
+            }
+        }, 300);
+    });

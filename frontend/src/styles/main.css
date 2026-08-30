@@ -1,245 +1,50 @@
 :root {
-    --bg-darker: #020617;       /* Titlebar */
-    --bg-main: #0f172a;         /* Fundo Editor */
-    --bg-sidebar: #1e293b;      /* Sidebar */
-    --bg-editor: #0f172a;       /* Fundo de caixas de texto/inputs (Adicionado) */
-    --border-color: #334155;    /* Bordas sutis */
-    --accent-blue: #3b82f6;     /* Azul de destaque */
-    --text-primary: #f8fafc;    /* Texto normal */
-    --text-muted: #94a3b8;      /* Texto secundário/apagado */
-    --text-light: #ffffff;      /* Texto puro brilhante (Adicionado) */
+    --bg-darker: #020617;       
+    --bg-main: #0f172a;         
+    --bg-sidebar: #1e293b;      
+    --bg-editor: #0f172a;       
+    --border-color: #334155;    
+    --accent-blue: #3b82f6;     
+    --text-primary: #f8fafc;    
+    --text-muted: #94a3b8;      
+    --text-light: #ffffff;      
     --font-mono: 'Consolas', 'Courier New', monospace;
 }
 
-body {
-    margin: 0;
-    padding: 0;
-    background-color: var(--bg-main);
-    color: var(--text-primary);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    overflow: hidden;
-}
-
-#app-container {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-}
-
-/* ==========================================
-   TITLEBAR MODERNA (FRAMELESS)
-   ========================================== */
-#titlebar {
-    height: 35px;
-    background-color: var(--bg-darker);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid var(--border-color);
-    user-select: none;
-    position: relative;
+/* Modals */
+.modal {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex; align-items: center; justify-content: center;
     z-index: 9999;
+    backdrop-filter: blur(2px);
 }
+.modal.hidden { display: none; }
 
-.titlebar-logo {
+.modal-content {
+    background: #16171B; /* Matches prototype surface-300 */
+    border: 1px solid #33353F;
+    border-radius: 8px; width: 400px; padding: 20px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    display: flex; flex-direction: column; gap: 15px;
+}
+.modal-header { display: flex; justify-content: space-between; align-items: center; }
+.modal-header h3 { margin: 0; font-size: 16px; color: #E2E4E9; }
+.modal-body { display: flex; flex-direction: column; gap: 8px; }
+.modal-body label { font-size: 13px; color: #9496A1; }
+.modal-body input {
+    background: #111215; border: 1px solid #33353F;
+    color: #E2E4E9; padding: 10px; border-radius: 4px; outline: none;
+    font-family: monospace;
+}
+.modal-body input:focus { border-color: #6366F1; }
+.btn-primary {
+    background: #6366F1; color: white; border: none;
+    padding: 8px 16px; border-radius: 4px; cursor: pointer; transition: background 0.2s;
     font-size: 13px;
-    font-weight: 600;
-    color: var(--text-muted);
-    padding-left: 15px;
-    letter-spacing: 1px;
 }
-
-.titlebar-controls {
-    display: flex;
-    height: 100%;
-    position: relative;
-    z-index: 10000;
-}
-
-.control-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    width: 45px;
-    height: 100%;
-    cursor: pointer;
-    font-size: 12px;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: auto !important;
-    -webkit-app-region: no-drag;
-}
-
-.control-btn:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: white;
-}
-
-.close-btn:hover {
-    background-color: #e81123 !important;
-    color: white;
-}
-
-/* ==========================================
-   LAYOUT GERAL
-   ========================================== */
-#main-content {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-}
-
-#workspace {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-#editor-preview-split {
-    flex: 1;
-    display: flex;
-    overflow: hidden;
-}
-
-#editor-container, #preview-container {
-    flex: 1;
-    padding: 20px;
-    overflow-y: auto;
-}
-
-#editor-container {
-    border-right: 1px solid var(--border-color);
-}
-
-textarea {
-    width: 100%;
-    height: 100%;
-    background-color: transparent;
-    color: var(--text-primary);
-    border: none;
-    resize: none;
-    outline: none;
-    font-family: var(--font-mono);
-    font-size: 14px;
-    line-height: 1.6;
-}
-
-/* ==========================================
-   SIDEBAR & RESIZER
-   ========================================== */
-#sidebar {
-    width: 250px;
-    min-width: 150px;
-    max-width: 500px;
-    background-color: var(--bg-sidebar);
-    display: flex;
-    flex-direction: column;
-}
-
-#sidebar-resizer {
-    width: 4px;
-    cursor: col-resize;
-    background: transparent;
-    transition: background 0.3s;
-    z-index: 10;
-}
-
-#sidebar-resizer:hover, #sidebar-resizer.active {
-    background: var(--accent-blue);
-}
-
-.sidebar-header {
-    padding: 15px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.sidebar-header h2 {
-    font-size: 11px;
-    letter-spacing: 1px;
-    color: var(--text-muted);
-    margin: 0 0 10px 0;
-}
-
-.sidebar-actions {
-    display: flex;
-    gap: 8px;
-}
-
-.sidebar-actions button {
-    background-color: transparent;
-    color: var(--text-muted);
-    border: none;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.sidebar-actions button:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: var(--text-primary);
-}
-
-#file-tree {
-    list-style: none;
-    padding: 10px;
-    margin: 0;
-    flex: 1;
-    overflow-y: auto;
-}
-
-.file-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 12px;
-    border-radius: 4px;
-    font-size: 13px;
-    color: #ccc;
-    border-left: 2px solid transparent;
-    transition: all 0.2s;
-    cursor: pointer;
-}
-
-.file-item:hover {
-    background: rgba(255,255,255,0.05);
-    border-left-color: var(--accent-blue);
-    color: white;
-}
-
-.file-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
-}
-
-.file-actions {
-    display: none;
-    gap: 5px;
-}
-
-.file-item:hover .file-actions {
-    display: flex;
-}
-.file-item {
-    transition: background 0.1s ease-in-out;
-    user-select: none;
-}
-.file-item:active {
-    background-color: rgba(59, 130, 246, 0.2); /* Azul suave ao clicar */
-    transform: scale(0.99);
-}
-.sub-dir {
-    border-left: 1px solid var(--border-color); /* Linha guia para pastas filhas */
-    margin-left: 10px;
-}
+.btn-primary:hover { background: #818CF8; }
+.btn-primary:disabled { background: #475569; cursor: not-allowed; }
 
 .action-btn {
     background: transparent;
@@ -249,139 +54,14 @@ textarea {
     opacity: 0.6;
     transition: opacity 0.2s;
 }
-
 .action-btn:hover { opacity: 1; }
 
-.sidebar-footer {
-    padding: 10px;
-    border-top: 1px solid var(--border-color);
-}
-
-#btn-open-terminal {
-    width: 100%;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid var(--border-color);
-    color: var(--text-muted);
-    padding: 6px;
-    font-size: 11px;
-    letter-spacing: 1px;
-    font-weight: bold;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: all 0.2s;
-}
-
-#btn-open-terminal:hover {
-    background: var(--accent-blue);
-    color: white;
-    border-color: var(--accent-blue);
-}
-
-/* ==========================================
-   TERMINAL INFERIOR
-   ========================================== */
-#bottom-panel {
-    height: 250px;
-    background: #000000;
-    border-top: 1px solid var(--border-color);
-    display: flex;
-    flex-direction: column;
-}
-
-#bottom-panel.hidden {
-    display: none !important;
-}
-
-.panel-header {
-    background: var(--bg-sidebar);
-    padding: 4px 15px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 11px;
-    font-weight: bold;
-    color: var(--text-muted);
-    letter-spacing: 1px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.panel-actions button {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: 14px;
-}
-
-.panel-actions button:hover { color: #fff; }
-
-#terminal-container {
-    flex: 1;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    padding: 5px;
-}
-
-.xterm-viewport { overflow-y: auto !important; }
-
-/* ==========================================
-   MENU SLASH E PDF MODO
-   ========================================== */
-.slash-menu {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    width: 220px;
-    background-color: var(--bg-sidebar);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-    display: flex;
-    flex-direction: column;
-    z-index: 100;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(-10px);
-    transition: all 0.2s ease;
-}
-
-.slash-menu.active {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0);
-}
-
-.slash-title {
-    padding: 10px 15px;
-    font-size: 11px;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    border-bottom: 1px solid var(--border-color);
-    background-color: rgba(0,0,0,0.2);
-}
-
-.slash-item {
-    padding: 10px 15px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: var(--text-primary);
-    font-size: 14px;
-    transition: background 0.1s;
-}
-
-.slash-item:hover, .slash-item.selected {
-    background-color: var(--accent-blue);
-    color: white;
-}
-
+/* PDF Export Mode */
 .pdf-export-mode {
     background-color: #ffffff !important;
-    height: max-content !important; /* NOVO: Força altura total */
-    overflow: visible !important;   /* NOVO: Remove barras de rolagem */
-    position: absolute;             /* NOVO: Remove restrições de flexbox */
+    height: max-content !important; 
+    overflow: visible !important;   
+    position: absolute;             
     top: 0; left: 0; width: 800px;
 }
 
@@ -394,69 +74,5 @@ textarea {
     border-color: #cbd5e1 !important;
 }
 
-.lang-select {
-    background-color: rgba(255, 255, 255, 0.05);
-    color: var(--text-muted);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    font-size: 10px;
-    padding: 2px 4px;
-    outline: none;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.lang-select:hover {
-    border-color: var(--accent-blue);
-    color: white;
-}
-
-.lang-select option {
-    background-color: var(--bg-sidebar);
-    color: white;
-}
-
-/* ==========================================
-   MODAL DE CONFIGURAÇÕES
-   ========================================== */
-.modal {
-    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 9999;
-    backdrop-filter: blur(2px);
-}
-.modal.hidden { display: none; }
-
-.modal-content {
-    background: var(--bg-sidebar); border: 1px solid var(--border-color);
-    border-radius: 8px; width: 400px; padding: 20px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-    display: flex; flex-direction: column; gap: 15px;
-}
-.modal-header { display: flex; justify-content: space-between; align-items: center; }
-.modal-header h3 { margin: 0; font-size: 16px; color: var(--text-light); }
-.modal-body { display: flex; flex-direction: column; gap: 8px; }
-.modal-body label { font-size: 13px; color: var(--text-muted); }
-.modal-body input {
-    background: var(--bg-editor); border: 1px solid var(--border-color);
-    color: var(--text-light); padding: 10px; border-radius: 4px; outline: none;
-    font-family: monospace;
-}
-.modal-body input:focus { border-color: var(--accent-blue); }
-.btn-primary {
-    background: var(--accent-blue); color: white; border: none;
-    padding: 8px 16px; border-radius: 4px; cursor: pointer; transition: background 0.2s;
-    font-size: 13px;
-}
-.btn-primary:hover { background: #2563eb; }
-.btn-primary:disabled { background: #475569; cursor: not-allowed; }
-
-.modal-content {
-    background: var(--bg-sidebar);
-    border: 1px solid var(--border-color);
-    border-radius: 8px; width: 400px; padding: 20px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-    display: flex; flex-direction: column; gap: 15px;
-    opacity: 1; /* Garante que a caixa em si é 100% opaca */
-}
+/* Terminal Adjustments for Tailwind */
+.xterm-viewport { overflow-y: auto !important; }
