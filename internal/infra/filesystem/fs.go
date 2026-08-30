@@ -1,11 +1,14 @@
 package filesystem
 
 import (
-	"encoding/base64" // Adicione isto aos seus imports no topo do ficheiro, junto com "os", etc.
+	"encoding/base64"
 	"errors"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/domain"
 )
@@ -113,4 +116,35 @@ func DeleteNode(path string) error {
 func RenameNode(oldPath, newPath string) error {
 	// O os.Rename usa chamadas de sistema nativas de altíssima performance para mover ponteiros de disco
 	return os.Rename(oldPath, newPath)
+}
+
+// CopyImageToWorkspace copies an external file to the workspace
+func CopyImageToWorkspace(srcPath string, workspacePath string) (string, error) {
+	srcFile, err := os.Open(srcPath)
+	if err != nil {
+		return "", err
+	}
+	defer srcFile.Close()
+
+	ext := filepath.Ext(srcPath)
+	if ext == "" {
+		ext = ".png"
+	}
+	
+	// Create a unique name
+	fileName := fmt.Sprintf("img_%d%s", time.Now().UnixMilli(), ext)
+	destPath := filepath.Join(workspacePath, fileName)
+
+	destFile, err := os.Create(destPath)
+	if err != nil {
+		return "", err
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, srcFile)
+	if err != nil {
+		return "", err
+	}
+
+	return destPath, nil
 }
