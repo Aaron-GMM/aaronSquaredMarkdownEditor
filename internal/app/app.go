@@ -3,25 +3,32 @@ package app
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/domain"
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/infra/filesystem"
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/infra/ia"
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/infra/terminal"
+	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/service"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// App struct
 type App struct {
 	ctx        context.Context
-	shell      *terminal.ShellSession // Mantém o terminal vivo na memória
-	aiProvider domain.AIProvider      // NOVO
+	shell      *terminal.ShellSession
+	aiProvider domain.AIProvider
+	workspace  *service.WorkspaceService
+	config     *service.ConfigService
+	indexer    *service.IndexingService
 }
 
-// NewApp cria uma nova instância da aplicação
 func NewApp() *App {
+	ws := service.NewWorkspaceService()
 	return &App{
-		aiProvider: IA.NewGroqClient(), // NOVO: Injeta a Groq silenciosamente
+		aiProvider: IA.NewGroqClient(), // FIXED IA capitalization
+		workspace:  ws,
+		config:     service.NewConfigService(),
+		indexer:    service.NewIndexingService(ws),
 	}
 }
 
@@ -29,35 +36,67 @@ func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 }
 
-// GetDirectory expõe a listagem de arquivos para o JS
+func (a *App) OpenWorkspace() (*domain.FileNode, error) {
+	folder, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Selecionar Pasta do Projeto",
+	})
+	if err != nil || folder == "" {
+		return nil, err
+	}
+	a.workspace.SetRootPath(folder)
+	return a.workspace.GetTree()
+}
+
+func (a *App) RefreshWorkspace() (*domain.FileNode, error) {
+	return a.workspace.GetTree()
+}
+
+func (a *App) CreateFileInWorkspace(name string) (*domain.FileNode, error) {
+	if err := a.workspace.CreateFile(name); err != nil {
+		return nil, err
+	}
+	return a.workspace.GetTree()
+}
+
+func (a *App) CreateFolderInWorkspace(name string) (*domain.FileNode, error) {
+	if err := a.workspace.CreateFolder(name); err != nil {
+		return nil, err
+	}
+	return a.workspace.GetTree()
+}
+
+func (a *App) DeleteNode(path string) (*domain.FileNode, error) {
+	if err := filesystem.DeleteNode(path); err != nil {
+		return nil, err
+	}
+	return a.workspace.GetTree()
+}
+
+func (a *App) RenameNode(oldPath, newName string) (*domain.FileNode, error) {
+	newPath := filepath.Join(filepath.Dir(oldPath), newName)
+	if err := filesystem.RenameNode(oldPath, newPath); err != nil {
+		return nil, err
+	}
+	return a.workspace.GetTree()
+}
+
 func (a *App) GetDirectory(path string) (*domain.FileNode, error) {
 	return filesystem.ListDirectory(path)
 }
 
-// OpenNote expõe a leitura de um arquivo .md para o JS
 func (a *App) OpenNote(path string) (*domain.Note, error) {
+	a.workspace.SetActiveFile(path)
 	return filesystem.ReadMarkdownFile(path)
 }
 
-// SaveNote expõe a função de salvar para o JS
-func (a *App) SaveNote(path string, content string) error {
+func (a *App) SaveNote(content string) error {
+	path := a.workspace.GetActiveFile()
+	if path == "" {
+		return fmt.Errorf("nenhum arquivo ativo no workspace")
+	}
 	return filesystem.SaveFile(path, content)
 }
 
-// CreateFile instrui o SO a criar um arquivo
-func (a *App) CreateFile(path string) error {
-	return filesystem.CreateFile(path)
-}
-
-// CreateDirectory instrui o SO a criar uma pasta
-func (a *App) CreateDirectory(path string) error {
-	return filesystem.CreateDirectory(path)
-}
-
-// DeleteNode remove um item do disco
-func (a *App) DeleteNode(path string) error {
-	return filesystem.DeleteNode(path)
-}
 func (a *App) SelectFolder() (string, error) {
 	folder, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
 		Title: "Selecionar Pasta de Notas",
@@ -65,21 +104,50 @@ func (a *App) SelectFolder() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	a.workspace.SetRootPath(folder)
 	return folder, nil
 }
 
-// RenameNode altera o nome ou caminho de um item
-func (a *App) RenameNode(oldPath, newPath string) error {
-	return filesystem.RenameNode(oldPath, newPath)
+func (a *App) SaveImage(name string, base64Data string) (string, error) {
+	path := a.workspace.GetRootPath()
+	if path == "" {
+		return "", fmt.Errorf("nenhum workspace aberto")
+	}
+	fullPath := filepath.Join(path, name)
+	if err := filesystem.SaveImage(fullPath, base64Data); err != nil {
+		return "", err
+	}
+	return fullPath, nil
 }
-func (a *App) SaveImage(path string, base64Data string) error {
+
+func (a *App) ImportImage() (string, error) {
+	workspacePath := a.workspace.GetRootPath()
+	if workspacePath == "" {
+		return "", fmt.Errorf("nenhum workspace aberto")
+	}
+
+	selectedFile, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Selecionar Imagem",
+		Filters: []runtime.FileFilter{
+			{DisplayName: "Imagens (*.png;*.jpg;*.jpeg;*.gif;*.svg)", Pattern: "*.png;*.jpg;*.jpeg;*.gif;*.svg"},
+		},
+	})
+	if err != nil || selectedFile == "" {
+		return "", err
+	}
+
+	return filesystem.CopyImageToWorkspace(selectedFile, workspacePath)
+}
+
+func (a *App) SaveImageWithPath(path string, base64Data string) error {
 	return filesystem.SaveImage(path, base64Data)
 }
+
 func (a *App) ReadImageBase64(path string) (string, error) {
 	return filesystem.ReadImageBase64(path)
 }
+
 func (a *App) StartTerminal() error {
-	// Se já existir um, mata antes de criar outro
 	if a.shell != nil {
 		a.shell.Close()
 	}
@@ -93,7 +161,6 @@ func (a *App) StartTerminal() error {
 	return nil
 }
 
-// WriteTerminal envia teclas/comandos para o processo que está rodando
 func (a *App) WriteTerminal(input string) error {
 	if a.shell == nil {
 		return fmt.Errorf("terminal não está rodando")
@@ -101,7 +168,6 @@ func (a *App) WriteTerminal(input string) error {
 	return a.shell.Write(input)
 }
 
-// StopTerminal expõe a função para matar o processo manualmente (limpeza de zumbis)
 func (a *App) StopTerminal() error {
 	if a.shell != nil {
 		return a.shell.Close()
@@ -109,6 +175,22 @@ func (a *App) StopTerminal() error {
 	return nil
 }
 
-func (a *App) GenerateAIContent(apiKey string, prompt string) (string, error) {
+func (a *App) GenerateAIContent(prompt string) (string, error) {
+	apiKey := a.config.GetGroqAPIKey()
+	if apiKey == "" {
+		return "", fmt.Errorf("chave de API não configurada")
+	}
 	return a.aiProvider.GenerateMarkdown(a.ctx, apiKey, prompt)
+}
+
+func (a *App) GetGroqAPIKey() string {
+	return a.config.GetGroqAPIKey()
+}
+
+func (a *App) SetGroqAPIKey(key string) error {
+	return a.config.SetGroqAPIKey(key)
+}
+
+func (a *App) SearchVault(query string) ([]domain.FileNode, error) {
+	return a.indexer.Search(query)
 }
