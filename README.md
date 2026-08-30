@@ -1,8 +1,8 @@
 # Aaron² Markdown Editor
 
-Um editor Markdown super rápido, minimalista e seguro, construído com **Go**, **Wails** e **Tailwind CSS**. Projetado para desenvolvedores e escritores que precisam de ferramentas modernas de Gestão do Conhecimento (PKM) conectadas ao sistema de arquivos local, com integração de IA.
+Um editor Markdown super rápido, minimalista e seguro, construído com **Go**, **Wails** e **Tailwind CSS**. Projetado para desenvolvedores e escritores que precisam de ferramentas modernas de Gestão do Conhecimento  conectadas ao sistema de arquivos local, com integração de IA.
 
-##  Funcionalidades (Core & PKM)
+##  Funcionalidades 
 
 - **Arquitetura Híbrida Leve:** Motor backend em Go para operações de I/O em milissegundos e UI reativa via webview (Vanilla JS + Tailwind).
 - **Gestão do Conhecimento Bidirecional:** Indexação local nativa de `[[Backlinks]]` e metadados via cabeçalhos YAML (Frontmatter) diretamente na barra lateral de contexto.
