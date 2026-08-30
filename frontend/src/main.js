@@ -1,7 +1,7 @@
 import {
     GetDirectory, OpenNote, SaveNote, CreateFileInWorkspace, CreateFolderInWorkspace, 
     DeleteNode, RenameNode, StartTerminal, WriteTerminal, SaveImage, ReadImageBase64, 
-    StopTerminal, SelectFolder, OpenWorkspace, RefreshWorkspace, GenerateAIContent, SearchVault, ImportImage,
+    StopTerminal, SelectFolder, OpenWorkspace, RefreshWorkspace, GenerateAIContent, SearchVault, ImportImage, GetBacklinks,
     GetGroqAPIKey, SetGroqAPIKey
 } from './services/wailsjs/go/app/App.js';
 
@@ -9,6 +9,8 @@ import {
 // 1. ESTADO GLOBAL E CONFIGURAÇÕES
 // ==========================================
 let debounceTimer;
+let currentMetadata = {};
+let currentActivePath = "";
 
 async function loadDirectory(path, container) {
     try {
@@ -24,9 +26,14 @@ window.loadDirectory = loadDirectory;
 
 window.openFile = async (path) => {
     try {
+        currentActivePath = path;
         const note = await OpenNote(path);
+        currentMetadata = (note.metadata || note.Metadata) || {};
         document.getElementById('markdown-editor').value = note.content || note.Content;
         updatePreview();
+        
+        // Render Context Panel
+        renderContextPanel(path, currentMetadata);
     } catch (e) {
         console.error("Erro ao abrir arquivo:", e);
     }
@@ -516,7 +523,7 @@ document.getElementById('btn-new-folder').onclick = async () => {
 
 async function handleSave() {
     try {
-        await SaveNote(document.getElementById('markdown-editor').value);
+        await SaveNote(document.getElementById('markdown-editor').value, currentMetadata);
         alert("✅ Arquivo salvo com sucesso!");
     } catch (err) { alert(err); }
 }
@@ -713,3 +720,76 @@ function updatePreview() {
             }
         }, 300);
     });
+
+// ==========================================
+// 9. CONTEXT PANEL (Backlinks & Tags)
+// ==========================================
+async function renderContextPanel(activePath, metadata) {
+    const contextPanel = document.getElementById('context-panel');
+    if (!contextPanel) return;
+
+    // We can assume contextPanel has a structure or we can overwrite it.
+    // Let's create the HTML structure dynamically if it doesn't exist, or just inject into specific containers.
+    // We'll just build the HTML string for simplicity.
+    
+    let tagsHtml = '<div class="text-xs text-text-muted italic">Nenhuma tag</div>';
+    if (metadata && metadata.tags) {
+        let tagsList = Array.isArray(metadata.tags) ? metadata.tags : [metadata.tags];
+        tagsHtml = tagsList.map(t => `<span class="px-2 py-1 bg-surface-100 rounded text-xs text-accent-blue border border-border/50">#${t}</span>`).join('');
+    }
+
+    let backlinksHtml = '<div class="text-xs text-text-muted italic px-4">Nenhum backlink encontrado.</div>';
+    try {
+        const backlinks = await GetBacklinks(activePath);
+        if (backlinks && backlinks.length > 0) {
+            backlinksHtml = backlinks.map(b => `
+                <div class="px-4 py-2 hover:bg-surface-200 cursor-pointer transition-colors border-l-2 border-transparent hover:border-accent-blue" onclick="window.openFile('${b.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')">
+                    <div class="flex items-center gap-2">
+                        <i class="ph ph-link text-text-muted text-sm"></i>
+                        <span class="text-sm text-text-secondary hover:text-text-primary">${b.name}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (e) {
+        console.error("Erro ao carregar backlinks:", e);
+    }
+
+    contextPanel.innerHTML = `
+        <div class="p-4 border-b border-border">
+            <h3 class="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Tags & Metadados</h3>
+            <div class="flex flex-wrap gap-2">
+                ${tagsHtml}
+            </div>
+        </div>
+        <div class="flex-1 overflow-y-auto">
+            <div class="p-4 pb-2">
+                <h3 class="text-xs font-semibold text-text-muted uppercase tracking-wider">Backlinks</h3>
+            </div>
+            <div class="flex flex-col pb-4">
+                ${backlinksHtml}
+            </div>
+        </div>
+    `;
+}
+
+    const rightSidebar = document.getElementById('right-sidebar');
+    const toggleRightBtn = document.getElementById('toggle-right-sidebar');
+    const closeRightBtn = document.getElementById('close-right-sidebar');
+    
+    let isRightSidebarOpen = false;
+
+    function toggleRightSidebar() {
+        isRightSidebarOpen = !isRightSidebarOpen;
+        if (isRightSidebarOpen) {
+            rightSidebar.style.width = '288px'; // w-72
+            rightSidebar.style.opacity = '1';
+        } else {
+            rightSidebar.style.width = '0px';
+            rightSidebar.style.opacity = '0';
+        }
+    }
+
+    if (toggleRightBtn) toggleRightBtn.onclick = toggleRightSidebar;
+    if (closeRightBtn) closeRightBtn.onclick = () => { if (isRightSidebarOpen) toggleRightSidebar(); };
+
