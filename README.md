@@ -2,7 +2,7 @@
 
 Um editor Markdown super rápido, minimalista e seguro, construído com **Go**, **Wails** e **Tailwind CSS**. Projetado para desenvolvedores e escritores que precisam de ferramentas modernas de Gestão do Conhecimento (PKM) conectadas ao sistema de arquivos local, com integração de IA.
 
-## 🚀 Funcionalidades (Core & PKM)
+##  Funcionalidades (Core & PKM)
 
 - **Arquitetura Híbrida Leve:** Motor backend em Go para operações de I/O em milissegundos e UI reativa via webview (Vanilla JS + Tailwind).
 - **Gestão do Conhecimento Bidirecional:** Indexação local nativa de `[[Backlinks]]` e metadados via cabeçalhos YAML (Frontmatter) diretamente na barra lateral de contexto.
@@ -21,7 +21,7 @@ Um editor Markdown super rápido, minimalista e seguro, construído com **Go**, 
 - **Markdown & Renderização:** `markdown-it`, PrismJS (Highlighting de Código), MermaidJS (Diagramas).
 - **Ícones:** Phosphor Icons
 
-## 💻 Instalação & Compilação
+##  Instalação & Compilação
 
 Certifique-se de ter o Go e o Wails instalados na sua máquina.
 
@@ -39,4 +39,3 @@ wails build
 
 ## 🧠 Filosofia do Projeto
 
-Diferente de editores web-based (como Notion) que travam seus dados na nuvem, o **Aaron²** opera primariamente num Workspace local ditado por você. O Frontend JavaScript *não tem acesso cru aos caminhos do seu sistema*, garantindo que toda a segurança e acesso a pastas seja delegada de forma protegida ao Backend Go (`WorkspaceService`).
