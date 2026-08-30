@@ -62,3 +62,44 @@ func (s *IndexingService) Search(query string) ([]domain.FileNode, error) {
 
 	return results, err
 }
+
+func (s *IndexingService) GetBacklinks(targetFilePath string) ([]domain.FileNode, error) {
+	root := s.workspace.GetRootPath()
+	if root == "" {
+		return nil, fmt.Errorf("nenhum workspace aberto")
+	}
+
+	baseName := strings.TrimSuffix(filepath.Base(targetFilePath), ".md")
+	linkPattern := fmt.Sprintf("[[%s]]", baseName)
+
+	var results []domain.FileNode
+
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() && strings.HasPrefix(info.Name(), ".") {
+			return filepath.SkipDir
+		}
+
+		if !info.IsDir() && filepath.Ext(info.Name()) == ".md" {
+			// Não contar o próprio arquivo como backlink dele mesmo
+			if path == targetFilePath {
+				return nil
+			}
+
+			content, err := os.ReadFile(path)
+			if err == nil && strings.Contains(string(content), linkPattern) {
+				results = append(results, domain.FileNode{
+					Name:      info.Name(),
+					Path:      path,
+					IsDir:     false,
+					Extension: ".md",
+				})
+			}
+		}
+		return nil
+	})
+
+	return results, err
+}
