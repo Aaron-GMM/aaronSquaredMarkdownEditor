@@ -11,6 +11,7 @@ type FileNode struct {
 
 // Note representa o conteúdo de um arquivo Markdown aberto
 type Note struct {
-	Path    string `json:"path"`
-	Content string `json:"content"`
+	Path     string                 `json:"path"`
+	Content  string                 `json:"content"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }

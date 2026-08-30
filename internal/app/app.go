@@ -86,15 +86,32 @@ func (a *App) GetDirectory(path string) (*domain.FileNode, error) {
 
 func (a *App) OpenNote(path string) (*domain.Note, error) {
 	a.workspace.SetActiveFile(path)
-	return filesystem.ReadMarkdownFile(path)
+	note, err := filesystem.ReadMarkdownFile(path)
+	if err != nil {
+		return nil, err
+	}
+	
+	metadata, body, err := service.ExtractFrontmatter(note.Content)
+	if err == nil && metadata != nil {
+		note.Metadata = metadata
+		note.Content = body
+	}
+	
+	return note, nil
 }
 
-func (a *App) SaveNote(content string) error {
+func (a *App) SaveNote(content string, metadata map[string]interface{}) error {
 	path := a.workspace.GetActiveFile()
 	if path == "" {
 		return fmt.Errorf("nenhum arquivo ativo no workspace")
 	}
-	return filesystem.SaveFile(path, content)
+
+	finalContent, err := service.ComposeFrontmatter(metadata, content)
+	if err != nil {
+		finalContent = content // fallback
+	}
+
+	return filesystem.SaveFile(path, finalContent)
 }
 
 func (a *App) SelectFolder() (string, error) {
