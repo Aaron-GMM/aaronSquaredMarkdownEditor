@@ -866,3 +866,82 @@ window.closeTab = async (path) => {
         console.error("Erro ao fechar aba:", e);
     }
 };
+
+// ==========================================
+// 11. TOOLBAR & VIEW MODES
+// ==========================================
+
+const btnBold = document.getElementById('btn-bold');
+const btnItalic = document.getElementById('btn-italic');
+const btnList = document.getElementById('btn-list');
+
+function insertTextAtCursor(prefix, suffix, defaultText = "") {
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const text = editor.value;
+    
+    let selectedText = text.substring(start, end);
+    if (!selectedText) selectedText = defaultText;
+
+    const before = text.substring(0, start);
+    const after = text.substring(end);
+
+    editor.value = before + prefix + selectedText + suffix + after;
+    
+    // Adjust cursor position
+    editor.selectionStart = start + prefix.length;
+    editor.selectionEnd = start + prefix.length + selectedText.length;
+    editor.focus();
+    updatePreview();
+}
+
+if (btnBold) btnBold.onclick = () => insertTextAtCursor("**", "**", "texto negrito");
+if (btnItalic) btnItalic.onclick = () => insertTextAtCursor("_", "_", "texto itálico");
+if (btnList) btnList.onclick = () => insertTextAtCursor("\n- ", "", "item");
+
+// View Modes
+const btnViewEdit = document.getElementById('btn-view-edit');
+const btnViewSplit = document.getElementById('btn-view-split');
+const btnViewPreview = document.getElementById('btn-view-preview');
+
+const editorContainer = document.getElementById('editor-container');
+const previewContainer = document.getElementById('preview-container');
+const splitResizer = document.getElementById('split-resizer');
+
+function setActiveViewBtn(activeBtn) {
+    [btnViewEdit, btnViewSplit, btnViewPreview].forEach(btn => {
+        if (!btn) return;
+        btn.classList.remove('bg-surface-100', 'shadow-sm', 'text-text-primary');
+        btn.classList.add('text-text-muted', 'hover:bg-surface-200');
+    });
+    if (activeBtn) {
+        activeBtn.classList.remove('text-text-muted', 'hover:bg-surface-200');
+        activeBtn.classList.add('bg-surface-100', 'shadow-sm', 'text-text-primary');
+    }
+}
+
+if (btnViewEdit) btnViewEdit.onclick = () => {
+    setActiveViewBtn(btnViewEdit);
+    editorContainer.style.display = 'block';
+    editorContainer.style.width = '100%';
+    previewContainer.style.display = 'none';
+    if(splitResizer) splitResizer.style.display = 'none';
+};
+
+if (btnViewPreview) btnViewPreview.onclick = () => {
+    setActiveViewBtn(btnViewPreview);
+    editorContainer.style.display = 'none';
+    previewContainer.style.display = 'block';
+    previewContainer.style.width = '100%';
+    if(splitResizer) splitResizer.style.display = 'none';
+};
+
+if (btnViewSplit) btnViewSplit.onclick = () => {
+    setActiveViewBtn(btnViewSplit);
+    editorContainer.style.display = 'block';
+    editorContainer.style.width = '50%';
+    previewContainer.style.display = 'block';
+    previewContainer.style.width = '50%';
+    if(splitResizer) splitResizer.style.display = 'block';
+};
+
