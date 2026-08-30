@@ -1,7 +1,7 @@
 import {
     GetDirectory, OpenNote, SaveNote, CreateFileInWorkspace, CreateFolderInWorkspace, 
     DeleteNode, RenameNode, StartTerminal, WriteTerminal, SaveImage, ReadImageBase64, 
-    StopTerminal, SelectFolder, OpenWorkspace, RefreshWorkspace, GenerateAIContent, SearchVault, ImportImage, GetBacklinks,
+    StopTerminal, SelectFolder, OpenWorkspace, RefreshWorkspace, GenerateAIContent, SearchVault, ImportImage, GetBacklinks, CloseTab, GetOpenTabs,
     GetGroqAPIKey, SetGroqAPIKey
 } from './services/wailsjs/go/app/App.js';
 
@@ -34,6 +34,8 @@ window.openFile = async (path) => {
         
         // Render Context Panel
         renderContextPanel(path, currentMetadata);
+        // Render Tabs
+        await renderTabs();
     } catch (e) {
         console.error("Erro ao abrir arquivo:", e);
     }
@@ -793,3 +795,74 @@ async function renderContextPanel(activePath, metadata) {
     if (toggleRightBtn) toggleRightBtn.onclick = toggleRightSidebar;
     if (closeRightBtn) closeRightBtn.onclick = () => { if (isRightSidebarOpen) toggleRightSidebar(); };
 
+
+// ==========================================
+// 10. MULTI-TABS (Tab Bar)
+// ==========================================
+async function renderTabs() {
+    const tabsBar = document.getElementById('tabs-bar');
+    if (!tabsBar) return;
+
+    try {
+        const tabs = await GetOpenTabs();
+        if (!tabs || tabs.length === 0) {
+            tabsBar.innerHTML = '';
+            document.getElementById('markdown-editor').value = '';
+            updatePreview();
+            renderContextPanel('', null);
+            currentActivePath = "";
+            return;
+        }
+
+        let tabsHtml = '';
+        tabs.forEach(path => {
+            const fileName = path.split(/[/\\]/).pop();
+            const isActive = (path === currentActivePath);
+            const activeClasses = isActive 
+                ? 'bg-surface-200 border-t-2 border-t-accent z-10 text-text-primary' 
+                : 'bg-surface-300 border-t-2 border-t-transparent hover:bg-surface-200/50 text-text-muted';
+
+            const iconColor = isActive ? 'text-accent' : 'text-text-muted opacity-70';
+
+            tabsHtml += `
+                <div class="group flex items-center gap-2 px-4 h-full border-r border-border min-w-[150px] max-w-[200px] cursor-pointer relative ${activeClasses}" onclick="switchTab('${path.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')">
+                    <i class="ph ph-file-text ${iconColor}"></i>
+                    <span class="truncate text-sm font-medium flex-1">${fileName}</span>
+                    <button class="opacity-0 group-hover:opacity-100 p-0.5 rounded-full hover:bg-surface-400 text-text-muted hover:text-text-primary transition-all" onclick="event.stopPropagation(); closeTab('${path.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')">
+                        <i class="ph ph-x text-xs"></i>
+                    </button>
+                </div>
+            `;
+        });
+        tabsBar.innerHTML = tabsHtml;
+    } catch(e) {
+        console.error("Erro ao renderizar abas:", e);
+    }
+}
+
+window.switchTab = async (path) => {
+    if (path === currentActivePath) return; // already active
+    await window.openFile(path);
+};
+
+window.closeTab = async (path) => {
+    try {
+        await CloseTab(path);
+        const remainingTabs = await GetOpenTabs();
+        
+        if (remainingTabs && remainingTabs.length > 0) {
+            if (path === currentActivePath) {
+                // Se fechou a ativa, o Go já setou a última como ativa.
+                // Mas precisamos forçar o UI a carregar ela
+                const newActive = remainingTabs[remainingTabs.length - 1];
+                await window.openFile(newActive);
+            } else {
+                await renderTabs(); // just re-render, focus didn't change
+            }
+        } else {
+            await renderTabs(); // will clear the editor
+        }
+    } catch(e) {
+        console.error("Erro ao fechar aba:", e);
+    }
+};

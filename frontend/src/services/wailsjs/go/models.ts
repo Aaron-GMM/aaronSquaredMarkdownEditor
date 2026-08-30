@@ -41,6 +41,7 @@ export namespace domain {
 	export class Note {
 	    path: string;
 	    content: string;
+	    metadata?: Record<string, any>;
 	
 	    static createFrom(source: any = {}) {
 	        return new Note(source);
@@ -50,6 +51,7 @@ export namespace domain {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.path = source["path"];
 	        this.content = source["content"];
+	        this.metadata = source["metadata"];
 	    }
 	}
 
