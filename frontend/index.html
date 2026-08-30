@@ -235,22 +235,24 @@
                 </div>
             </div>
 
-            <!-- Toolbar (Visual only for now, logic is TODO) -->
+            <!-- Toolbar -->
             <div class="h-10 flex items-center justify-between px-6 border-b border-border/30 bg-surface-200 shrink-0">
                 <div class="flex items-center gap-1">
-                    <button class="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-surface-100 transition-colors" title="Negrito">
+                    <button id="btn-bold" class="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-surface-100 transition-colors" title="Negrito">
                         <i class="ph ph-text-b"></i>
                     </button>
-                    <button class="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-surface-100 transition-colors" title="Itálico">
+                    <button id="btn-italic" class="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-surface-100 transition-colors" title="Itálico">
                         <i class="ph ph-text-italic"></i>
                     </button>
                     <div class="w-px h-4 bg-border mx-1"></div>
-                    <button class="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-surface-100 transition-colors" title="Lista">
+                    <button id="btn-list" class="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-surface-100 transition-colors" title="Lista">
                         <i class="ph ph-list-bullets"></i>
                     </button>
                 </div>
                 <div class="flex items-center gap-2 bg-surface-300 p-1 rounded-md border border-border">
-                    <button class="px-3 py-1 text-xs font-medium rounded shadow-sm bg-surface-100 text-text-primary">Source/Preview Split</button>
+                    <button id="btn-view-edit" class="px-3 py-1 text-xs font-medium rounded text-text-muted hover:text-text-primary hover:bg-surface-200 transition-colors" title="Apenas Editor">Editor</button>
+                    <button id="btn-view-split" class="px-3 py-1 text-xs font-medium rounded shadow-sm bg-surface-100 text-text-primary" title="Editor e Preview">Split</button>
+                    <button id="btn-view-preview" class="px-3 py-1 text-xs font-medium rounded text-text-muted hover:text-text-primary hover:bg-surface-200 transition-colors" title="Apenas Preview">Preview</button>
                 </div>
             </div>
 
