@@ -11,15 +11,19 @@ import (
 type WorkspaceService struct {
 	rootPath   string
 	activeFile string
+	openFiles  []string
 }
 
 func NewWorkspaceService() *WorkspaceService {
-	return &WorkspaceService{}
+	return &WorkspaceService{
+		openFiles: make([]string, 0),
+	}
 }
 
 func (service *WorkspaceService) SetRootPath(rootPath string) {
 	service.rootPath = rootPath
-	service.activeFile = "" // reset active file when changing workspace
+	service.activeFile = ""
+	service.openFiles = make([]string, 0)
 }
 
 func (service *WorkspaceService) GetRootPath() string {
@@ -63,4 +67,40 @@ func (service *WorkspaceService) CreateFolder(name string) error {
 	}
 	fullPath := filepath.Join(service.rootPath, name)
 	return filesystem.CreateDirectory(fullPath)
+}
+
+func (service *WorkspaceService) OpenTab(path string) {
+	// Add if not exists
+	found := false
+	for _, p := range service.openFiles {
+		if p == path {
+			found = true
+			break
+		}
+	}
+	if !found {
+		service.openFiles = append(service.openFiles, path)
+	}
+	service.activeFile = path
+}
+
+func (service *WorkspaceService) CloseTab(path string) {
+	for i, p := range service.openFiles {
+		if p == path {
+			service.openFiles = append(service.openFiles[:i], service.openFiles[i+1:]...)
+			break
+		}
+	}
+	// Adjust active file if closed
+	if service.activeFile == path {
+		if len(service.openFiles) > 0 {
+			service.activeFile = service.openFiles[len(service.openFiles)-1]
+		} else {
+			service.activeFile = ""
+		}
+	}
+}
+
+func (service *WorkspaceService) GetOpenTabs() []string {
+	return service.openFiles
 }

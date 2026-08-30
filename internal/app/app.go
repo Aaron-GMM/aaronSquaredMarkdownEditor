@@ -85,7 +85,7 @@ func (a *App) GetDirectory(path string) (*domain.FileNode, error) {
 }
 
 func (a *App) OpenNote(path string) (*domain.Note, error) {
-	a.workspace.SetActiveFile(path)
+	a.workspace.OpenTab(path)
 	note, err := filesystem.ReadMarkdownFile(path)
 	if err != nil {
 		return nil, err
@@ -214,4 +214,12 @@ func (a *App) SearchVault(query string) ([]domain.FileNode, error) {
 
 func (a *App) GetBacklinks(targetFilePath string) ([]domain.FileNode, error) {
 	return a.indexer.GetBacklinks(targetFilePath)
+}
+
+func (a *App) CloseTab(path string) {
+	a.workspace.CloseTab(path)
+}
+
+func (a *App) GetOpenTabs() []string {
+	return a.workspace.GetOpenTabs()
 }
