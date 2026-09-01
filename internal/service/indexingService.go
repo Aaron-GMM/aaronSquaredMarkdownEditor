@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/config"
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/domain"
 )
 
@@ -17,89 +18,93 @@ func NewIndexingService(ws *WorkspaceService) *IndexingService {
 	return &IndexingService{workspace: ws}
 }
 
-func (s *IndexingService) Search(query string) ([]domain.FileNode, error) {
+// StartBackgroundIndexing varre os arquivos md do disco e os salva no SQLite silenciosamente
+func (s *IndexingService) StartBackgroundIndexing() {
 	root := s.workspace.GetRootPath()
 	if root == "" {
-		return nil, fmt.Errorf("nenhum workspace aberto")
+		return
 	}
 
-	var results []domain.FileNode
-	queryLower := strings.ToLower(query)
+	db := config.GetDB()
+	if db == nil {
+		return
+	}
 
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-		
-		// Skip hidden folders and git
-		if info.IsDir() && strings.HasPrefix(info.Name(), ".") {
-			return filepath.SkipDir
-		}
+	go func() {
+		filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil
+			}
+			
+			// Ignora pastas ocultas (como .git ou .aaron)
+			if info.IsDir() && strings.HasPrefix(info.Name(), ".") {
+				return filepath.SkipDir
+			}
 
-		if !info.IsDir() && filepath.Ext(info.Name()) == ".md" {
-			if strings.Contains(strings.ToLower(info.Name()), queryLower) {
-				results = append(results, domain.FileNode{
-					Name:      info.Name(),
-					Path:      path,
-					IsDir:     false,
-					Extension: ".md",
-				})
-			} else {
-				// optionally search file content
+			if !info.IsDir() && filepath.Ext(info.Name()) == ".md" {
 				content, err := os.ReadFile(path)
-				if err == nil && strings.Contains(strings.ToLower(string(content)), queryLower) {
-					results = append(results, domain.FileNode{
-						Name:      info.Name(),
-						Path:      path,
-						IsDir:     false,
-						Extension: ".md",
-					})
+				if err == nil {
+					// Salva ou atualiza a nota na tabela IndexNode
+					node := config.IndexNode{
+						Path:    path,
+						Name:    info.Name(),
+						Content: string(content),
+					}
+					db.Save(&node)
 				}
 			}
-		}
-		return nil
-	})
-
-	return results, err
+			return nil
+		})
+	}()
 }
 
+// Search agora usa consulta SQL ao invés de ler todo o HD!
+func (s *IndexingService) Search(query string) ([]domain.FileNode, error) {
+	db := config.GetDB()
+	if db == nil {
+		return nil, fmt.Errorf("banco de dados não inicializado")
+	}
+
+	var nodes []config.IndexNode
+	searchQuery := "%" + query + "%"
+
+	// Busca rápida usando LIKE nativo do SQLite
+	db.Where("name LIKE ? OR content LIKE ?", searchQuery, searchQuery).Find(&nodes)
+
+	var results []domain.FileNode
+	for _, n := range nodes {
+		results = append(results, domain.FileNode{
+			Name:      n.Name,
+			Path:      n.Path,
+			IsDir:     false,
+			Extension: ".md",
+		})
+	}
+	return results, nil
+}
+
+// GetBacklinks também usa SQLite para achar referências na velocidade da luz
 func (s *IndexingService) GetBacklinks(targetFilePath string) ([]domain.FileNode, error) {
-	root := s.workspace.GetRootPath()
-	if root == "" {
-		return nil, fmt.Errorf("nenhum workspace aberto")
+	db := config.GetDB()
+	if db == nil {
+		return nil, fmt.Errorf("banco de dados não inicializado")
 	}
 
 	baseName := strings.TrimSuffix(filepath.Base(targetFilePath), ".md")
-	linkPattern := fmt.Sprintf("[[%s]]", baseName)
+	linkPattern := "%[[" + baseName + "]]%"
+
+	var nodes []config.IndexNode
+	// Onde o conteúdo tiver o link, MAS não for ele mesmo referenciando a si mesmo
+	db.Where("content LIKE ? AND path != ?", linkPattern, targetFilePath).Find(&nodes)
 
 	var results []domain.FileNode
-
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-		if info.IsDir() && strings.HasPrefix(info.Name(), ".") {
-			return filepath.SkipDir
-		}
-
-		if !info.IsDir() && filepath.Ext(info.Name()) == ".md" {
-			// Não contar o próprio arquivo como backlink dele mesmo
-			if path == targetFilePath {
-				return nil
-			}
-
-			content, err := os.ReadFile(path)
-			if err == nil && strings.Contains(string(content), linkPattern) {
-				results = append(results, domain.FileNode{
-					Name:      info.Name(),
-					Path:      path,
-					IsDir:     false,
-					Extension: ".md",
-				})
-			}
-		}
-		return nil
-	})
-
-	return results, err
+	for _, n := range nodes {
+		results = append(results, domain.FileNode{
+			Name:      n.Name,
+			Path:      n.Path,
+			IsDir:     false,
+			Extension: ".md",
+		})
+	}
+	return results, nil
 }
