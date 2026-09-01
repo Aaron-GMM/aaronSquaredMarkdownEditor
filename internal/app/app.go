@@ -10,6 +10,7 @@ import (
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/infra/ia"
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/infra/terminal"
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/service"
+	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/config"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -44,6 +45,11 @@ func (a *App) OpenWorkspace() (*domain.FileNode, error) {
 		return nil, err
 	}
 	a.workspace.SetRootPath(folder)
+	
+	if err := config.Init(folder); err == nil {
+		a.indexer.StartBackgroundIndexing()
+	}
+
 	return a.workspace.GetTree()
 }
 
@@ -122,6 +128,11 @@ func (a *App) SelectFolder() (string, error) {
 		return "", err
 	}
 	a.workspace.SetRootPath(folder)
+	
+	if err := config.Init(folder); err == nil {
+		a.indexer.StartBackgroundIndexing()
+	}
+
 	return folder, nil
 }
 
