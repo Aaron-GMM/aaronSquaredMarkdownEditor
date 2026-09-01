@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/config"
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/domain"
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/infra/filesystem"
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/infra/ia"
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/infra/terminal"
 	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/service"
-	"github.com/Aaron-GMM/aaronSquaredMarkdownEditor/internal/config"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -45,7 +45,7 @@ func (a *App) OpenWorkspace() (*domain.FileNode, error) {
 		return nil, err
 	}
 	a.workspace.SetRootPath(folder)
-	
+
 	if err := config.Init(folder); err == nil {
 		a.indexer.StartBackgroundIndexing()
 	}
@@ -96,13 +96,13 @@ func (a *App) OpenNote(path string) (*domain.Note, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	metadata, body, err := service.ExtractFrontmatter(note.Content)
 	if err == nil && metadata != nil {
 		note.Metadata = metadata
 		note.Content = body
 	}
-	
+
 	return note, nil
 }
 
@@ -128,7 +128,7 @@ func (a *App) SelectFolder() (string, error) {
 		return "", err
 	}
 	a.workspace.SetRootPath(folder)
-	
+
 	if err := config.Init(folder); err == nil {
 		a.indexer.StartBackgroundIndexing()
 	}
